@@ -19,6 +19,8 @@ export interface AppDeps {
   adminToken: string;
   /** 32-byte AES-256 key for upstream credential vault. */
   masterKey: Buffer;
+  /** Analytics SSE heartbeat interval in ms (default 15000; tests inject short). */
+  feedHeartbeatMs?: number;
 }
 
 export interface ErrorShape {

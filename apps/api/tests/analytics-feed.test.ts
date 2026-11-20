@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { feedBus, type FeedRow } from "../src/lib/feedBus.ts";
 import { recordRequest } from "../src/proxy/capture.ts";
-import { db } from "./setup.ts";
+import { adminHeaders, db, testApp } from "./setup.ts";
 
 /**
  * M2-T3: GET /admin/analytics/feed — live SSE feed of persisted request rows.
@@ -141,5 +141,94 @@ describe("capture hook", () => {
     }
     // metrics only: no prompt/response content field may ever appear
     expect(JSON.stringify(seen[0])).not.toMatch(/content|messages|prompt["']?:/);
+  });
+});
+
+/** Read the SSE body until `want` appears in the accumulated text (or deadline). */
+async function readUntil(res: Response, want: string | RegExp, ms = 5000): Promise<string> {
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  const deadline = Date.now() + ms;
+  try {
+    while (Date.now() < deadline) {
+      const { done, value } = await Promise.race([
+        reader.read(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`readUntil timeout waiting for ${want}: ${text}`)), ms),
+        ),
+      ]);
+      if (done) break;
+      text += decoder.decode(value, { stream: true });
+      if (typeof want === "string" ? text.includes(want) : want.test(text)) return text;
+    }
+    throw new Error(`readUntil: stream ended without ${want}: ${JSON.stringify(text)}`);
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function connect(path = "/admin/analytics/feed") {
+  return testApp().request(path, { headers: adminHeaders() });
+}
+
+describe("GET /admin/analytics/feed", () => {
+  it("401 without admin token, same unauthorized shape", async () => {
+    const res = await testApp().request("/admin/analytics/feed");
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as { error: { code: string; message: string } };
+    expect(body.error.code).toBe("unauthorized");
+    expect(typeof body.error.message).toBe("string");
+  });
+
+  it("streams a hello event with exact SSE headers on connect", async () => {
+    const res = await connect();
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/event-stream");
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+    expect(res.headers.get("connection")).toBe("keep-alive");
+
+    const text = await readUntil(res, "event: hello\n");
+    const match = text.match(/^event: hello\ndata: (.*)\n\n$/m)!;
+    expect(match).not.toBeNull();
+    const data = JSON.parse(match[1]!) as { ok: boolean; ts: string };
+    expect(data.ok).toBe(true);
+    expect(new Date(data.ts).toISOString()).toBe(data.ts);
+    await res.body!.cancel();
+  });
+
+  it("sends a request event with the documented exact fields for each published row", async () => {
+    const res = await connect();
+    await readUntil(res, "event: hello\n");
+
+    feedBus.publish(sampleRow());
+    const text = await readUntil(res, "event: request\n");
+    const match = text.match(/^event: request\ndata: (.*)\n\n$/m)!;
+    const data = JSON.parse(match[1]!) as Record<string, unknown>;
+
+    expect(Object.keys(data)).toEqual([
+      "id",
+      "ts",
+      "requestedModel",
+      "upstreamModel",
+      "wireFormat",
+      "stream",
+      "status",
+      "httpStatus",
+      "latencyMs",
+      "ttftMs",
+      "promptTokens",
+      "completionTokens",
+      "costUsd",
+      "keyId",
+      "memberId",
+      "accountId",
+      "modelId",
+    ]);
+    expect(data).toEqual({
+      ...sampleRow(),
+      ts: "2026-11-20T10:00:00.000Z",
+    });
+    await res.body!.cancel();
   });
 });
