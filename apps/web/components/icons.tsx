@@ -104,3 +104,6 @@ export const IconClose = (p: IconProps) =>
 
 export const IconChevron = (p: IconProps) =>
   base(p, <path d="m9 18 6-6-6-6" />);
+
+// W15 alias: expandable-row chevron (models table) — même glyphe que IconChevron.
+export const IconChevronRight = IconChevron;
