@@ -15,6 +15,7 @@ export function Table<Row>({
   rowKey,
   onRowClick,
   rowClassName,
+  rowHeight,
 }: {
   columns: Column<Row>[];
   rows: Row[];
@@ -23,6 +24,8 @@ export function Table<Row>({
   onRowClick?: (row: Row) => void;
   /** String (W15: "group" for hover-revealed actions) or per-row function (W13: enter animation). */
   rowClassName?: string | ((row: Row) => string);
+  /** W14: row pitch override (analytics ranking uses 53px). */
+  rowHeight?: string;
 }) {
   return (
     <table className="w-full border-collapse text-body">
@@ -46,7 +49,8 @@ export function Table<Row>({
           <tr
             key={rowKey(row, i)}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
-            className={`h-[var(--row-height)] border-t border-rule ${
+            style={rowHeight ? { height: rowHeight } : undefined}
+            className={`${rowHeight ? "" : "h-[var(--row-height)] "}border-t border-rule ${
               onRowClick ? "cursor-pointer hover:bg-raised/40" : ""
             } ${typeof rowClassName === "string" ? rowClassName : (rowClassName?.(row) ?? "")}`}
           >
