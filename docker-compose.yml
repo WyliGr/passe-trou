@@ -1,0 +1,37 @@
+name: passetrou
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: passetrou
+      POSTGRES_USER: passetrou
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U passetrou -d passetrou"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: .
+    image: passetrou:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://passetrou:${POSTGRES_PASSWORD}@db:5432/passetrou
+      HOST: 0.0.0.0
+      PORT: "8477"
+      NODE_ENV: production
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env}
+      ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:?set ENCRYPTION_MASTER_KEY in .env}
+    ports:
+      - "${PASSETROU_PORT:-8477}:8477"
+
+volumes:
+  pgdata:

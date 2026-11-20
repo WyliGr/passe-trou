@@ -44,6 +44,22 @@ LAN-only by design: plain HTTP on all interfaces, no TLS, no tunnel code —
 public exposure is a deliberate operator move, later. Full route reference:
 [API.md](API.md).
 
+## Self-host (docker)
+
+`docker-compose.yml` runs the API plus a Postgres 16 (`pgdata` volume);
+migrations are applied automatically at boot.
+
+```bash
+cp /dev/null .env   # then set the required vars
+# POSTGRES_PASSWORD=$(openssl rand -hex 24)
+# ADMIN_TOKEN=$(openssl rand -hex 32)      # Bearer for /admin/*
+# ENCRYPTION_MASTER_KEY=$(openssl rand -hex 32)  # AES-256-GCM master key — back it up: losing it bricks stored secrets
+docker compose up -d --build
+curl localhost:8477/healthz
+```
+
+`PASSETROU_PORT` overrides the published port (default `8477`).
+
 ## License
 
 MIT — © 2026 Wyliam Burger.
