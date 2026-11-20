@@ -87,15 +87,15 @@ describe("proxyAuth middleware on /v1/*", () => {
     expect((await res.json()).error.code).toBe("invalid_api_key");
   });
 
-  it("valid key passes auth (no /v1 route yet → 404 not_found, never 401)", async () => {
+  it("valid key passes auth (reaches the route: 400 on empty body, never 401)", async () => {
     const { token } = await seedKey();
     const app = testApp();
     const res = await app.request("/v1/chat/completions", {
       method: "POST",
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(res.status).toBe(404);
-    expect((await res.json()).error.code).toBe("not_found");
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("invalid_request");
   });
 });
 
