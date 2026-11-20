@@ -8,6 +8,7 @@ import { adminAuth } from "./admin/middleware.ts";
 import { adminRouter } from "./admin/index.ts";
 import type { Db } from "./db.ts";
 import { proxyAuth } from "./proxy/auth.ts";
+import { anthropicRouter } from "./proxy/anthropic.ts";
 import { openaiRouter } from "./proxy/openai.ts";
 
 export interface AppDeps {
@@ -81,6 +82,7 @@ export function createApp(deps: AppDeps) {
   // Proxy edge: key-based auth on everything under /v1.
   app.use("/v1/*", proxyAuth(deps.db));
   app.route("/v1", openaiRouter(deps));
+  app.route("/v1", anthropicRouter(deps));
 
   app.notFound((c) => c.json(errorShape("not_found", `no route ${c.req.method} ${c.req.path}`), 404));
 
