@@ -16,6 +16,30 @@ export async function seedAdmin(
   });
 }
 
+/** Known provider presets, keyed on the stable unique name: re-runs converge drift. */
+const PROVIDER_PRESETS = [
+  { name: "CommandCode", kind: "openai", baseUrl: "https://api.commandcode.ai/provider/v1" },
+  { name: "Mistral", kind: "openai", baseUrl: "https://api.mistral.ai/v1" },
+] as const;
+
+/** Idempotent: Will's provider presets + demo member; safe to run on every deploy. */
+export async function seedPresets(db: Db): Promise<void> {
+  await db.$transaction(async (tx) => {
+    for (const p of PROVIDER_PRESETS) {
+      await tx.provider.upsert({
+        where: { name: p.name },
+        update: { kind: p.kind, baseUrl: p.baseUrl },
+        create: { name: p.name, kind: p.kind, baseUrl: p.baseUrl },
+      });
+    }
+    await tx.member.upsert({
+      where: { name: "Will" },
+      update: {},
+      create: { name: "Will", notes: "demo member" },
+    });
+  });
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   loadLocalEnv();
   const url = process.env.DATABASE_URL;
@@ -23,7 +47,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const db = createPrismaClient(url);
   try {
     await seedAdmin(db);
-    console.log("seeded admin member");
+    await seedPresets(db);
+    console.log("seeded admin member, provider presets, demo member");
   } finally {
     await db.$disconnect();
   }
