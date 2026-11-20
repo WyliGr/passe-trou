@@ -17,6 +17,19 @@ const patchSchema = z
   })
   .partial();
 
+const allowlistSchema = z.object({
+  modelIds: z.array(z.string().min(1)),
+});
+
+async function allowedModelsJson(db: Db, keyId: string) {
+  const rows = await db.apiKeyModel.findMany({
+    where: { keyId },
+    include: { model: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return rows.map((r) => ({ id: r.model.id, displayName: r.model.name }));
+}
+
 /** Public key shape: prefix for display, hash stays in the DB, plaintext never. */
 function keyJson(k: ApiKey) {
   return {
@@ -100,6 +113,36 @@ export function keysRouter(db: Db) {
     const key = await mustGetKey(db, c.req.param("id"));
     await db.apiKey.delete({ where: { id: key.id } });
     return c.body(null, 204);
+  });
+
+  /**
+   * Per-key model allowlist (full replace).
+   * Semantics: an EMPTY allowlist is a wildcard — every enabled logical model
+   * is allowed; a NON-EMPTY allowlist restricts the key to exactly those
+   * models. The proxy enforces this; here it is only stored.
+   */
+  r.put("/keys/:id/models", async (c) => {
+    const key = await mustGetKey(db, c.req.param("id"));
+    const body = allowlistSchema.parse(await parseJson(c));
+    const modelIds = [...new Set(body.modelIds)];
+    const found = await db.model.findMany({ where: { id: { in: modelIds } } });
+    if (found.length !== modelIds.length) {
+      const known = new Set(found.map((m) => m.id));
+      const unknown = modelIds.filter((id) => !known.has(id));
+      throw new ApiError(400, "invalid_request", `unknown model ids: ${unknown.join(", ")}`);
+    }
+    await db.$transaction([
+      db.apiKeyModel.deleteMany({ where: { keyId: key.id } }),
+      db.apiKeyModel.createMany({
+        data: modelIds.map((modelId) => ({ keyId: key.id, modelId })),
+      }),
+    ]);
+    return c.json(await allowedModelsJson(db, key.id));
+  });
+
+  r.get("/keys/:id/models", async (c) => {
+    const key = await mustGetKey(db, c.req.param("id"));
+    return c.json(await allowedModelsJson(db, key.id));
   });
 
   return r;

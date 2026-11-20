@@ -24,6 +24,11 @@ async function createMember(displayName = "Chloé") {
   return (await res.json()) as { id: string };
 }
 
+async function createModel(displayName: string) {
+  const res = await jsonReq("POST", "/admin/models", { displayName });
+  return (await res.json()) as { id: string };
+}
+
 async function createKey(memberId: string, body: unknown = { label: "heermes" }) {
   return jsonReq("POST", `/admin/members/${memberId}/keys`, body);
 }
@@ -152,5 +157,95 @@ describe("GET/PATCH/DELETE /admin/keys/:id", () => {
     expect(res.status).toBe(204);
     expect((await req(`/admin/keys/${created.id}`)).status).toBe(404);
     expect((await req("/admin/keys/nope", { method: "DELETE" })).status).toBe(404);
+  });
+});
+
+describe("PUT/GET /admin/keys/:id/models", () => {
+  it("PUT sets the allowlist; GET reads back ids + names", async () => {
+    const member = await createMember();
+    const key = await (await createKey(member.id)).json();
+    const a = await createModel("fast-flash");
+    const b = await createModel("brain-pro");
+
+    const put = await jsonReq("PUT", `/admin/keys/${key.id}/models`, {
+      modelIds: [a.id, b.id],
+    });
+    expect(put.status).toBe(200);
+    expect(await put.json()).toEqual([
+      { id: a.id, displayName: "fast-flash" },
+      { id: b.id, displayName: "brain-pro" },
+    ]);
+
+    const res = await req(`/admin/keys/${key.id}/models`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([
+      { id: a.id, displayName: "fast-flash" },
+      { id: b.id, displayName: "brain-pro" },
+    ]);
+  });
+
+  it("PUT full-replaces: swapping to a subset drops the rest", async () => {
+    const member = await createMember();
+    const key = await (await createKey(member.id)).json();
+    const a = await createModel("fast-flash");
+    const b = await createModel("brain-pro");
+    await jsonReq("PUT", `/admin/keys/${key.id}/models`, { modelIds: [a.id, b.id] });
+
+    const put = await jsonReq("PUT", `/admin/keys/${key.id}/models`, { modelIds: [b.id] });
+    expect(put.status).toBe(200);
+    expect(await put.json()).toEqual([{ id: b.id, displayName: "brain-pro" }]);
+    expect(await (await req(`/admin/keys/${key.id}/models`)).json()).toEqual([
+      { id: b.id, displayName: "brain-pro" },
+    ]);
+  });
+
+  it("empty allowlist is the wildcard (all enabled models allowed)", async () => {
+    const member = await createMember();
+    const key = await (await createKey(member.id)).json();
+    expect(await (await req(`/admin/keys/${key.id}/models`)).json()).toEqual([]);
+
+    const put = await jsonReq("PUT", `/admin/keys/${key.id}/models`, { modelIds: [] });
+    expect(put.status).toBe(200);
+    expect(await put.json()).toEqual([]);
+  });
+
+  it("dedupes repeated model ids", async () => {
+    const member = await createMember();
+    const key = await (await createKey(member.id)).json();
+    const a = await createModel("fast-flash");
+    const put = await jsonReq("PUT", `/admin/keys/${key.id}/models`, {
+      modelIds: [a.id, a.id],
+    });
+    expect(put.status).toBe(200);
+    expect(await put.json()).toEqual([{ id: a.id, displayName: "fast-flash" }]);
+  });
+
+  it("400 on unknown model id; allowlist unchanged", async () => {
+    const member = await createMember();
+    const key = await (await createKey(member.id)).json();
+    const a = await createModel("fast-flash");
+    await jsonReq("PUT", `/admin/keys/${key.id}/models`, { modelIds: [a.id] });
+
+    const res = await jsonReq("PUT", `/admin/keys/${key.id}/models`, {
+      modelIds: [a.id, "nope"],
+    });
+    expect(res.status).toBe(400);
+    expect(await (await req(`/admin/keys/${key.id}/models`)).json()).toEqual([
+      { id: a.id, displayName: "fast-flash" },
+    ]);
+  });
+
+  it("400 on invalid body; 404 on unknown key", async () => {
+    const member = await createMember();
+    const key = await (await createKey(member.id)).json();
+    for (const bad of [{}, { modelIds: "x" }, { modelIds: [42] }]) {
+      expect(
+        (await jsonReq("PUT", `/admin/keys/${key.id}/models`, bad)).status,
+      ).toBe(400);
+    }
+    expect(
+      (await jsonReq("PUT", "/admin/keys/nope/models", { modelIds: [] })).status,
+    ).toBe(404);
+    expect((await req("/admin/keys/nope/models")).status).toBe(404);
   });
 });
