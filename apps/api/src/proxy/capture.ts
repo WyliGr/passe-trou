@@ -3,6 +3,7 @@ import pino from "pino";
 import type { Db } from "../db.ts";
 import type { Model, ProviderKind } from "../generated/prisma/client.ts";
 import { computeCost, findPrice, type PriceLike } from "../lib/cost.ts";
+import { feedBus } from "../lib/feedBus.ts";
 import type { AuthedKey } from "./auth.ts";
 import type { ResolvedMapping } from "./resolve.ts";
 
@@ -64,7 +65,7 @@ async function persist(db: Db, ctx: CaptureCtx): Promise<void> {
     ? (ctx.mapping.upstreamModel ?? ctx.model?.name ?? null)
     : null;
   const costUsd = await costFor(db, ctx, upstreamModel);
-  await db.request.create({
+  const row = await db.request.create({
     data: {
       keyId: ctx.key?.id ?? null,
       memberId: ctx.key?.memberId ?? null,
@@ -89,6 +90,30 @@ async function persist(db: Db, ctx: CaptureCtx): Promise<void> {
       clientName: ctx.clientName ?? null,
     },
   });
+  // Live analytics feed: after persist, fire-and-forget, ids + metrics only.
+  try {
+    feedBus.publish({
+      id: row.id,
+      ts: row.ts,
+      requestedModel: row.requestedModel,
+      upstreamModel: row.upstreamModel,
+      wireFormat: row.wireFormat,
+      stream: row.stream,
+      status: row.status,
+      httpStatus: row.httpStatus,
+      latencyMs: row.latencyMs,
+      ttftMs: row.ttftMs,
+      promptTokens: row.promptTokens,
+      completionTokens: row.completionTokens,
+      costUsd: row.costUsd,
+      keyId: row.keyId,
+      memberId: row.memberId,
+      accountId: row.accountId,
+      modelId: row.modelId,
+    });
+  } catch {
+    // feed errors must never surface in the proxy path
+  }
 }
 
 async function costFor(
