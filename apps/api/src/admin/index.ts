@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { AppDeps } from "../app.ts";
 import { accountsRouter } from "./accounts.ts";
+import { analyticsRouter } from "./analytics.ts";
 import { credentialsRouter } from "./credentials.ts";
 import { keysRouter } from "./keys.ts";
 import { membersRouter } from "./members.ts";
@@ -21,6 +22,7 @@ export function adminRouter(deps: AppDeps) {
   r.route("/", keysRouter(deps.db));
   r.route("/", pricesRouter(deps.db));
   r.route("/", overviewRouter(deps.db));
+  r.route("/", analyticsRouter(deps.db));
   r.route("/", testConnectionRouter(deps.db, deps.masterKey));
   return r;
 }
