@@ -10,6 +10,40 @@ Agent-first, T3 Code spirit: the dashboard is just a client of passe•trou's ad
 
 Name: `passe•trou`, lowercase with a middle dot (U+00B7). Where `•` is illegal (repos, packages, files): `passe-trou`.
 
+## Dev run
+
+Node ≥ 22 and one Postgres 16 — everything else is npm workspaces.
+
+```bash
+# Postgres (any instance works; this one-liner matches apps/api/.env.example):
+docker run -d --name passetrou-pg \
+  -e POSTGRES_PASSWORD=change-me -e POSTGRES_DB=passetrou \
+  -p 127.0.0.1:5434:5432 postgres:16-alpine
+
+npm install
+cd apps/api && cp .env.example .env   # then edit the three required values:
+# DATABASE_URL             postgresql://postgres:change-me@127.0.0.1:5434/passetrou
+# ADMIN_TOKEN              bearer for every /admin/* route (32+ chars; openssl rand -hex 24)
+# ENCRYPTION_MASTER_KEY    AES-256-GCM key for upstream credentials, 64+ hex (openssl rand -hex 32)
+
+npm run db:migrate   # prisma migrate dev
+npm run db:seed      # admin member, CommandCode/Mistral provider presets, demo member Will
+
+cd .. && npm run dev # API on 0.0.0.0:8477 (PORT env overrides)
+```
+
+Smoke-check the full slice — boots a test instance on a free port, drives a
+streamed request through a recorded mock upstream, asserts the row and its
+cost in `GET /admin/overview`:
+
+```bash
+bash scripts/smoke.sh
+```
+
+LAN-only by design: plain HTTP on all interfaces, no TLS, no tunnel code —
+public exposure is a deliberate operator move, later. Full route reference:
+[API.md](API.md).
+
 ## License
 
 MIT — © 2026 Wyliam Burger.
