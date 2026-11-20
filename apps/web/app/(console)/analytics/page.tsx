@@ -9,8 +9,10 @@ import { Empty } from "@/components/Empty";
 import { ErrorBlock } from "@/components/ErrorBlock";
 import { KpiStrip, type KpiItem } from "@/components/KpiStrip";
 import { PageTitle } from "@/components/PageTitle";
+import { Pill } from "@/components/Pill";
 import { RangeTabs, type RangeOption } from "@/components/RangeTabs";
-import { Skeleton } from "@/components/Skeleton";
+import { Skeleton, SkeletonRows } from "@/components/Skeleton";
+import { Table, type Column } from "@/components/Table";
 import { UnderlineSelect, type SelectOption } from "@/components/UnderlineSelect";
 import {
   fetchSummary,
@@ -195,7 +197,37 @@ export default function AnalyticsPage() {
 
   const okSummary = summary.status === "ok" ? summary.data : null;
   const activeLeft = leftMetric ?? tab;
+  const activeRight = rightMetric ?? tab;
+  const rightDef = METRICS[activeRight];
   const ranked = okSummary ? rankRows(okSummary.rows, activeLeft, groupBy) : [];
+  const rankedRight = okSummary ? rankRows(okSummary.rows, activeRight, groupBy) : [];
+
+  const rankingColumns: Column<(typeof rankedRight)[number]>[] = [
+    {
+      key: "rank",
+      header: "#",
+      render: (r) => (
+        <span className="text-muted">{rankedRight.indexOf(r) + 1}</span>
+      ),
+    },
+    {
+      key: "name",
+      header: GROUP_LABELS[groupBy],
+      render: (r) =>
+        rankedRight.indexOf(r) === 0 ? <Pill variant="neutral">{r.name}</Pill> : r.name,
+    },
+    {
+      key: "value",
+      header: rightDef.label,
+      align: "right",
+      render: (r) =>
+        r.value === null ? (
+          <span className="text-muted">–</span>
+        ) : (
+          rightDef.format(r.value)
+        ),
+    },
+  ];
 
   return (
     <div className="flex flex-col" style={{ gap: "var(--gap)" }}>
@@ -258,6 +290,31 @@ export default function AnalyticsPage() {
                 rows={ranked}
                 formatValue={METRICS[activeLeft].format}
                 ariaLabel={`${METRICS[activeLeft].label} by ${groupBy}`}
+              />
+            )}
+          </div>
+        </section>
+
+        <section aria-label="Ranking" className="rounded-card bg-surface p-6">
+          <PanelHeader
+            title="Ranking"
+            description={`All ${groupBy}s by ${rightDef.label.toLowerCase()}`}
+            metric={activeRight}
+            onMetric={setRightMetric}
+          />
+          <div className="pt-4">
+            {summary.status === "error" ? (
+              <ErrorBlock error={summary.error} onRetry={loadSummary} />
+            ) : summary.status === "loading" ? (
+              <SkeletonRows rows={8} rowHeight="53px" />
+            ) : rankedRight.length === 0 ? (
+              <Empty sentence="No data in this window." />
+            ) : (
+              <Table
+                columns={rankingColumns}
+                rows={rankedRight}
+                rowKey={(r) => r.id}
+                rowHeight="53px"
               />
             )}
           </div>

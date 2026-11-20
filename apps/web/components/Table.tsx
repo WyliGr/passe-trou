@@ -13,10 +13,13 @@ export function Table<Row>({
   columns,
   rows,
   rowKey,
+  rowHeight,
 }: {
   columns: Column<Row>[];
   rows: Row[];
   rowKey: (row: Row, i: number) => React.Key;
+  /** Row pitch override (default var(--row-height) = 42px; analytics ranking uses 53px). */
+  rowHeight?: string;
 }) {
   return (
     <table className="w-full border-collapse text-body">
@@ -37,7 +40,11 @@ export function Table<Row>({
       </thead>
       <tbody>
         {rows.map((row, i) => (
-          <tr key={rowKey(row, i)} className="h-[var(--row-height)] border-t border-rule">
+          <tr
+            key={rowKey(row, i)}
+            className="border-t border-rule"
+            style={{ height: rowHeight ?? "var(--row-height)" }}
+          >
             {columns.map((col) => (
               <td
                 key={col.key}
