@@ -1,0 +1,203 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProviderKind {
+  openai
+  anthropic
+}
+
+enum RequestStatus {
+  ok
+  error
+  aborted
+}
+
+model Provider {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  kind      ProviderKind
+  baseUrl   String?
+  accounts  Account[]
+  prices    Price[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@map("providers")
+}
+
+model Account {
+  id              String             @id @default(cuid())
+  providerId      String
+  provider        Provider           @relation(fields: [providerId], references: [id])
+  label           String
+  baseUrl         String?
+  enabled         Boolean            @default(true)
+  cooledDownUntil DateTime?
+  credential      AccountCredential?
+  modelMappings   ModelAccount[]
+  prices          Price[]
+  requests        Request[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([providerId, label])
+  @@map("accounts")
+}
+
+model AccountCredential {
+  id        String   @id @default(cuid())
+  accountId String   @unique
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  enc       String
+  last4     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("account_credentials")
+}
+
+model Price {
+  id               String    @id @default(cuid())
+  providerId       String?
+  provider         Provider? @relation(fields: [providerId], references: [id])
+  accountId        String?
+  account          Account?  @relation(fields: [accountId], references: [id])
+  modelMatcher     String
+  priceInput       Float
+  priceOutput      Float
+  priceCachedInput Float?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("prices")
+}
+
+model Model {
+  id           String         @id @default(cuid())
+  name         String         @unique
+  displayName  String?
+  enabled      Boolean        @default(true)
+  mappings     ModelAccount[]
+  keyAllowlist ApiKeyModel[]
+  requests     Request[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("models")
+}
+
+model ModelAccount {
+  id            String   @id @default(cuid())
+  modelId       String
+  model         Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id])
+  upstreamModel String?
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([modelId, accountId])
+  @@map("model_accounts")
+}
+
+model Member {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  notes     String?
+  keys      ApiKey[]
+  requests  Request[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("members")
+}
+
+model ApiKey {
+  id            String        @id @default(cuid())
+  memberId      String
+  member        Member        @relation(fields: [memberId], references: [id])
+  label         String
+  prefix        String
+  sha256        String        @unique
+  enabled       Boolean       @default(true)
+  lastUsedAt    DateTime?
+  allowedModels ApiKeyModel[]
+  requests      Request[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("api_keys")
+}
+
+model ApiKeyModel {
+  keyId     String
+  apiKey    ApiKey   @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  modelId   String
+  model     Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([keyId, modelId])
+  @@map("api_key_models")
+}
+
+model Request {
+  id               String        @id @default(cuid())
+  ts               DateTime      @default(now())
+  keyId            String?
+  apiKey           ApiKey?       @relation(fields: [keyId], references: [id], onDelete: SetNull)
+  memberId         String?
+  member           Member?       @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  accountId        String?
+  account          Account?      @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  modelId          String?
+  model            Model?        @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  requestedModel   String
+  upstreamModel    String?
+  wireFormat       ProviderKind
+  stream           Boolean
+  status           RequestStatus
+  httpStatus       Int
+  errorCode        String?
+  latencyMs        Int
+  ttftMs           Int?
+  promptTokens     Int?
+  completionTokens Int?
+  reasoningTokens  Int?
+  cachedTokens     Int?
+  toolCallCount    Int?
+  finishReason     String?
+  costUsd          Float?
+  clientName       String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([ts])
+  @@index([keyId, ts])
+  @@index([accountId, ts])
+  @@index([modelId, ts])
+  @@index([memberId, ts])
+  @@map("requests")
+}
+
+model IdempotencyKey {
+  id         String    @id @default(cuid())
+  key        String    @unique
+  method     String?
+  path       String?
+  statusCode Int?
+  response   Json?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("idempotency_keys")
+}
