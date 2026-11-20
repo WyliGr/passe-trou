@@ -30,11 +30,17 @@ export function LineChart({
   height = 200,
   formatValue = (v) => fmtCompact(v),
   ariaLabel = "Series over time",
+  label,
+  overlay,
 }: {
   points: LinePoint[];
   height?: number;
   formatValue?: (v: number) => string;
   ariaLabel?: string;
+  /** Primary series name, shown in legend + tooltip when an overlay is present. */
+  label?: string;
+  /** Optional second series (e.g. p95 next to avg) — drawn in --chart-3 with a legend. */
+  overlay?: { points: LinePoint[]; label: string; color?: string };
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -57,17 +63,21 @@ export function LineChart({
 
   const geom = useMemo(() => {
     if (points.length === 0) return null;
+    const overlayPts = overlay?.points ?? [];
     const t0 = Math.min(...points.map((p) => p.ts));
     const t1 = Math.max(...points.map((p) => p.ts));
     const span = Math.max(t1 - t0, 1);
-    const vmax = Math.max(...points.map((p) => p.value));
+    const vmax = Math.max(...points.map((p) => p.value), ...overlayPts.map((p) => p.value));
     const ticks = niceTicks(vmax);
     const top = ticks[ticks.length - 1] ?? 1;
     const x = (ts: number) => pad.left + ((ts - t0) / span) * plotW;
     const y = (v: number) => pad.top + plotH - (v / top) * plotH;
-    const path = points
-      .map((p, i) => `${i === 0 ? "M" : "L"}${x(p.ts).toFixed(2)},${y(p.value).toFixed(2)}`)
-      .join(" ");
+    const toPath = (pts: LinePoint[]) =>
+      pts
+        .map((p, i) => `${i === 0 ? "M" : "L"}${x(p.ts).toFixed(2)},${y(p.value).toFixed(2)}`)
+        .join(" ");
+    const path = toPath(points);
+    const overlayPath = overlayPts.length > 1 ? toPath(overlayPts) : null;
     // 4-6 x labels on one step, ends pulled inside the plot
     const wanted = width > 560 ? 6 : 4;
     const xl: { ts: number; anchor: "start" | "middle" | "end" }[] = [];
@@ -78,8 +88,9 @@ export function LineChart({
         anchor: i === 0 ? "start" : i === wanted - 1 ? "end" : "middle",
       });
     }
-    return { t0, t1, span, ticks, top, x, y, path, xl };
-  }, [points, plotW, plotH, width, pad.left, pad.top]);
+    const overlayByTs = new Map(overlayPts.map((p) => [p.ts, p.value]));
+    return { t0, t1, span, ticks, top, x, y, path, overlayPath, overlayByTs, xl };
+  }, [points, overlay, plotW, plotH, width, pad.left, pad.top]);
 
   if (points.length === 0) return <div ref={hostRef} style={{ height }} />;
 
@@ -165,6 +176,16 @@ export function LineChart({
             strokeLinejoin="round"
             strokeLinecap="round"
           />
+          {geom.overlayPath && (
+            <path
+              d={geom.overlayPath}
+              fill="none"
+              stroke={overlay?.color ?? "var(--chart-3)"}
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          )}
           {points.length === 1 && (
             <circle cx={geom.x(points[0]!.ts)} cy={geom.y(points[0]!.value)} r="3.5" fill="var(--chart-1)" />
           )}
@@ -190,6 +211,23 @@ export function LineChart({
           )}
         </svg>
       )}
+      {overlay && (
+        <div className="pointer-events-none absolute right-2 top-0 flex gap-4">
+          {[
+            { name: label ?? "Series", color: "var(--chart-1)" },
+            { name: overlay.label, color: overlay.color ?? "var(--chart-3)" },
+          ].map((s) => (
+            <span key={s.name} className="flex items-center gap-1.5 text-small text-muted">
+              <span
+                aria-hidden="true"
+                className="inline-block h-[3px] w-3 rounded-full"
+                style={{ background: s.color }}
+              />
+              {s.name}
+            </span>
+          ))}
+        </div>
+      )}
       {hover !== null && hoverPt && (
         <div
           className="pointer-events-none absolute z-10 rounded-card bg-raised px-2 py-1 text-small shadow-card"
@@ -200,7 +238,19 @@ export function LineChart({
         >
           <span className="font-mono text-muted">{fmtPointTs(hoverPt.ts, geom!.span)}</span>
           <span className="mx-2 text-rule">·</span>
+          {overlay && <span className="mr-1 text-muted">{label ?? "value"}</span>}
           <span className="font-mono text-text">{formatValue(hoverPt.value)}</span>
+          {overlay &&
+            (() => {
+              const v = geom!.overlayByTs.get(hoverPt.ts);
+              return v !== undefined ? (
+                <>
+                  <span className="mx-2 text-rule">·</span>
+                  <span className="mr-1 text-muted">{overlay.label}</span>
+                  <span className="font-mono text-text">{formatValue(v)}</span>
+                </>
+              ) : null;
+            })()}
         </div>
       )}
     </div>

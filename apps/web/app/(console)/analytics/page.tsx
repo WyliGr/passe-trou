@@ -3,11 +3,12 @@
 // Analytics — where do spend and latency come from (provider · account · model · key · member).
 // Data: GET /admin/analytics/summary (grouped aggregates) + /admin/analytics/timeseries (trend).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BarList } from "@/components/BarList";
 import { Empty } from "@/components/Empty";
 import { ErrorBlock } from "@/components/ErrorBlock";
 import { KpiStrip, type KpiItem } from "@/components/KpiStrip";
+import { LineChart, type LinePoint } from "@/components/LineChart";
 import { PageTitle } from "@/components/PageTitle";
 import { Pill } from "@/components/Pill";
 import { RangeTabs, type RangeOption } from "@/components/RangeTabs";
@@ -16,6 +17,7 @@ import { Table, type Column } from "@/components/Table";
 import { UnderlineSelect, type SelectOption } from "@/components/UnderlineSelect";
 import {
   fetchSummary,
+  fetchTimeseries,
   fmtMs,
   fmtRate,
   GROUPS,
@@ -27,6 +29,7 @@ import {
   type PanelMetric,
   type GroupBy,
   type Summary,
+  type Timeseries,
 } from "@/lib/analytics";
 import { fmtCost, fmtInt } from "@/lib/format";
 
@@ -195,7 +198,55 @@ export default function AnalyticsPage() {
     void loadSummary();
   }, [loadSummary]);
 
+  // Trend for the active tab: hour buckets for 24h, day buckets beyond.
+  const [series, setSeries] = useState<LoadState<Timeseries>>({ status: "loading" });
+  const loadSeries = useCallback(async () => {
+    setSeries((s) => (s.status === "ok" ? s : { status: "loading" }));
+    const to = new Date();
+    const from = new Date(to.getTime() - RANGE_MS[range]);
+    const bucket = range === "24h" ? "hour" : "day";
+    try {
+      setSeries({
+        status: "ok",
+        data: await fetchTimeseries(METRICS[tab].tsMetric, bucket, from, to),
+      });
+    } catch (error) {
+      setSeries({ status: "error", error });
+    }
+  }, [range, tab]);
+  useEffect(() => {
+    void loadSeries();
+  }, [loadSeries]);
+
   const okSummary = summary.status === "ok" ? summary.data : null;
+
+  // Ungrouped series → one { key: "all" } entry; latency points carry avg + p95.
+  const trend = useMemo<{ primary: LinePoint[]; overlay: LinePoint[] | null } | null>(() => {
+    if (series.status !== "ok") return null;
+    const s = series.data.series[0];
+    if (!s) return { primary: [], overlay: null };
+    if (tab === "latency") {
+      const avg: LinePoint[] = [];
+      const p95: LinePoint[] = [];
+      for (const p of s.points as unknown as {
+        ts: string;
+        avg: number | null;
+        p95: number | null;
+      }[]) {
+        const t = Date.parse(p.ts);
+        if (p.avg !== null) avg.push({ ts: t, value: p.avg });
+        if (p.p95 !== null) p95.push({ ts: t, value: p.p95 });
+      }
+      return { primary: avg, overlay: p95 };
+    }
+    const pts = (s.points as unknown as { ts: string; value: number }[]).map((p) => ({
+      ts: Date.parse(p.ts),
+      value: p.value,
+    }));
+    return { primary: pts, overlay: null };
+  }, [series, tab]);
+
+  const tabLabel = TABS.find((t) => t.id === tab)?.label ?? tab;
   const activeLeft = leftMetric ?? tab;
   const activeRight = rightMetric ?? tab;
   const rightDef = METRICS[activeRight];
@@ -320,6 +371,37 @@ export default function AnalyticsPage() {
           </div>
         </section>
       </div>
+
+      <section aria-label="Trend" className="rounded-card bg-surface p-6">
+        <PanelHeader
+          title={tabLabel}
+          description={`Per ${range === "24h" ? "hour" : "day"} across the window`}
+        />
+        <div className="pt-4">
+          {tab === "errors" && series.status === "ok" && (
+            <p className="mb-3 text-body text-muted">
+              Error counts are not bucketed by the API — showing requests for context.
+            </p>
+          )}
+          {series.status === "error" ? (
+            <ErrorBlock error={series.error} onRetry={loadSeries} />
+          ) : series.status === "loading" || trend === null ? (
+            <Skeleton className="h-[220px] w-full" />
+          ) : trend.primary.length === 0 ? (
+            <Empty sentence="No data in this window." />
+          ) : (
+            <LineChart
+              points={trend.primary}
+              height={220}
+              formatValue={METRICS[tab].format}
+              ariaLabel={`${tabLabel} per ${range === "24h" ? "hour" : "day"}`}
+              {...(trend.overlay
+                ? { label: "Avg", overlay: { points: trend.overlay, label: "P95" } }
+                : {})}
+            />
+          )}
+        </div>
+      </section>
     </div>
   );
 }
