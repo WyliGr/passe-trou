@@ -8,6 +8,10 @@ export interface KpiItem {
   label: string;
   value: string | null; // null = missing → grey dash at label size
   unit?: string;
+  /** 12px comparison line under the value ("+12% vs the 24h before"). */
+  sub?: string;
+  /** Polarity rule: only error-rate and spend deltas carry colour. */
+  subTone?: "muted" | "positive" | "negative";
 }
 
 export function KpiStrip({
@@ -21,7 +25,9 @@ export function KpiStrip({
 }) {
   return (
     <div
-      className="grid grid-cols-5 divide-x divide-rule max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-5 max-md:divide-x-0"
+      className="grid grid-cols-[repeat(var(--kpi-cols),minmax(0,1fr))] divide-x divide-rule max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-5 max-md:divide-x-0"
+      // Cell count is data-driven (5 on W12, 7 with comparisons) — passed as a CSS var.
+      style={{ "--kpi-cols": String(Math.max(items.length, 1)) } as React.CSSProperties}
       role={onSelect ? "tablist" : undefined}
     >
       {items.map((item) => {
@@ -53,6 +59,21 @@ export function KpiStrip({
                 </>
               )}
             </span>
+            {item.sub !== undefined ? (
+              <span
+                className={`mt-0.5 block text-small ${
+                  item.subTone === "positive"
+                    ? "text-positive"
+                    : item.subTone === "negative"
+                      ? "text-negative"
+                      : "text-muted"
+                }`}
+              >
+                {item.sub}
+              </span>
+            ) : (
+              <span className="mt-0.5 block text-small">&nbsp;</span>
+            )}
           </button>
         );
       })}

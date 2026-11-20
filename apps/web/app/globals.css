@@ -94,3 +94,19 @@ samp {
 ::selection {
   background: var(--raised);
 }
+
+/* Live motion: lane dots fade/slide in over 120ms, prepended table rows over 150ms. */
+@keyframes lane-dot-in {
+  from { opacity: 0; transform: translateX(4px); }
+  to { transform: none; }
+}
+.lane-dot-in {
+  animation: lane-dot-in 120ms ease-out;
+}
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { transform: none; }
+}
+.row-in {
+  animation: row-in 150ms ease-in;
+}

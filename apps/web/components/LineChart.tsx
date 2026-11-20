@@ -2,14 +2,20 @@
 
 // Hand-rolled SVG line chart per §6: 3-5 faint horizontal gridlines, right-aligned muted mono y
 // labels, dates on x (time scale), one 1.5px --chart-1 series with no legend, crosshair tooltip
-// in a --raised card. Zero is always the baseline.
+// in a --raised card. Zero is always the baseline. Null values break the line (honest gaps).
+// Latency metrics pass a second series (p95) at 35% opacity, announced by small legend chips.
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { fmtAxisTs, fmtCompact, fmtPointTs } from "@/lib/format";
 
 export interface LinePoint {
   ts: number; // epoch ms
-  value: number;
+  value: number | null;
+}
+
+export interface ChartLegend {
+  primary: string;
+  secondary: string;
 }
 
 // Round ticks (steps of 1, 2, 2.5 or 5 × 10^n) whose top sits above the largest value.
@@ -25,13 +31,38 @@ function niceTicks(max: number, count = 4): number[] {
   return out;
 }
 
+/** Path with a gap (new subpath) wherever value is null. */
+function makePath(
+  points: LinePoint[],
+  x: (ts: number) => number,
+  y: (v: number) => number,
+): string {
+  let d = "";
+  let pen = false;
+  for (const p of points) {
+    if (p.value === null) {
+      pen = false;
+      continue;
+    }
+    d += `${pen ? "L" : "M"}${x(p.ts).toFixed(2)},${y(p.value).toFixed(2)}`;
+    pen = true;
+  }
+  return d;
+}
+
 export function LineChart({
   points,
+  secondary,
+  legend,
   height = 200,
   formatValue = (v) => fmtCompact(v),
   ariaLabel = "Series over time",
 }: {
   points: LinePoint[];
+  /** Second comparison series (same bucket grid), drawn at 35% opacity. */
+  secondary?: LinePoint[];
+  /** Chips labelling the two series; required when secondary is passed. */
+  legend?: ChartLegend;
   height?: number;
   formatValue?: (v: number) => string;
   ariaLabel?: string;
@@ -57,17 +88,17 @@ export function LineChart({
 
   const geom = useMemo(() => {
     if (points.length === 0) return null;
-    const t0 = Math.min(...points.map((p) => p.ts));
-    const t1 = Math.max(...points.map((p) => p.ts));
+    const all = secondary ? [...points, ...secondary] : points;
+    const t0 = Math.min(...all.map((p) => p.ts));
+    const t1 = Math.max(...all.map((p) => p.ts));
     const span = Math.max(t1 - t0, 1);
-    const vmax = Math.max(...points.map((p) => p.value));
+    const vmax = Math.max(0, ...all.map((p) => p.value ?? 0));
     const ticks = niceTicks(vmax);
     const top = ticks[ticks.length - 1] ?? 1;
     const x = (ts: number) => pad.left + ((ts - t0) / span) * plotW;
     const y = (v: number) => pad.top + plotH - (v / top) * plotH;
-    const path = points
-      .map((p, i) => `${i === 0 ? "M" : "L"}${x(p.ts).toFixed(2)},${y(p.value).toFixed(2)}`)
-      .join(" ");
+    const path = makePath(points, x, y);
+    const path2 = secondary ? makePath(secondary, x, y) : null;
     // 4-6 x labels on one step, ends pulled inside the plot
     const wanted = width > 560 ? 6 : 4;
     const xl: { ts: number; anchor: "start" | "middle" | "end" }[] = [];
@@ -78,13 +109,17 @@ export function LineChart({
         anchor: i === 0 ? "start" : i === wanted - 1 ? "end" : "middle",
       });
     }
-    return { t0, t1, span, ticks, top, x, y, path, xl };
-  }, [points, plotW, plotH, width, pad.left, pad.top]);
+    return { t0, t1, span, ticks, top, x, y, path, path2, xl };
+  }, [points, secondary, plotW, plotH, width, pad.left, pad.top]);
 
   if (points.length === 0) return <div ref={hostRef} style={{ height }} />;
 
   const px = (i: number) => geom!.x(points[i]!.ts);
   const hoverPt = hover !== null ? points[hover]! : null;
+  const hoverSec =
+    hover !== null && secondary?.[hover] && secondary[hover]!.ts === hoverPt?.ts
+      ? secondary[hover]!
+      : null;
 
   const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!geom) return;
@@ -103,106 +138,157 @@ export function LineChart({
   };
 
   return (
-    <div
-      ref={hostRef}
-      className="relative"
-      style={{ height }}
-      role="img"
-      aria-label={ariaLabel}
-      onMouseMove={onMove}
-      onMouseLeave={() => setHover(null)}
-    >
-      {width > 0 && geom && (
-        <svg width={width} height={height} className="block overflow-visible">
-          {geom.ticks.map((t) => (
-            <g key={t}>
-              <line
-                x1={pad.left}
-                x2={width - pad.right}
-                y1={geom.y(t)}
-                y2={geom.y(t)}
-                stroke="var(--border)"
-                strokeWidth="1"
+    <div>
+      {secondary && legend && (
+        <div className="mb-2 flex items-center gap-4">
+          {[legend.primary, legend.secondary].map((label, i) => (
+            <span key={label} className="flex items-center gap-1.5 text-small text-muted">
+              <span
+                aria-hidden="true"
+                className="inline-block h-[2px] w-4 bg-chart-1"
+                style={i === 1 ? { opacity: 0.35 } : undefined}
               />
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
+      <div
+        ref={hostRef}
+        className="relative"
+        style={{ height }}
+        role="img"
+        aria-label={ariaLabel}
+        onMouseMove={onMove}
+        onMouseLeave={() => setHover(null)}
+      >
+        {width > 0 && geom && (
+          <svg width={width} height={height} className="block overflow-visible">
+            {geom.ticks.map((t) => (
+              <g key={t}>
+                <line
+                  x1={pad.left}
+                  x2={width - pad.right}
+                  y1={geom.y(t)}
+                  y2={geom.y(t)}
+                  stroke="var(--border)"
+                  strokeWidth="1"
+                />
+                <text
+                  x={pad.left - 8}
+                  y={geom.y(t) + 3}
+                  textAnchor="end"
+                  fill="var(--muted)"
+                  fontSize="12"
+                  className="font-mono"
+                >
+                  {formatValue(t)}
+                </text>
+              </g>
+            ))}
+            <line
+              x1={pad.left}
+              x2={width - pad.right}
+              y1={pad.top + plotH}
+              y2={pad.top + plotH}
+              stroke="var(--control)"
+              strokeWidth="1"
+            />
+            {geom.xl.map((l) => (
               <text
-                x={pad.left - 8}
-                y={geom.y(t) + 3}
-                textAnchor="end"
+                key={l.ts}
+                x={l.anchor === "start" ? pad.left : l.anchor === "end" ? width - pad.right : geom.x(l.ts)}
+                y={height - 8}
+                textAnchor={l.anchor}
                 fill="var(--muted)"
                 fontSize="12"
                 className="font-mono"
               >
-                {formatValue(t)}
+                {fmtAxisTs(l.ts, geom.span)}
               </text>
-            </g>
-          ))}
-          <line
-            x1={pad.left}
-            x2={width - pad.right}
-            y1={pad.top + plotH}
-            y2={pad.top + plotH}
-            stroke="var(--control)"
-            strokeWidth="1"
-          />
-          {geom.xl.map((l) => (
-            <text
-              key={l.ts}
-              x={l.anchor === "start" ? pad.left : l.anchor === "end" ? width - pad.right : geom.x(l.ts)}
-              y={height - 8}
-              textAnchor={l.anchor}
-              fill="var(--muted)"
-              fontSize="12"
-              className="font-mono"
-            >
-              {fmtAxisTs(l.ts, geom.span)}
-            </text>
-          ))}
-          <path
-            d={geom.path}
-            fill="none"
-            stroke="var(--chart-1)"
-            strokeWidth="1.5"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-          {points.length === 1 && (
-            <circle cx={geom.x(points[0]!.ts)} cy={geom.y(points[0]!.value)} r="3.5" fill="var(--chart-1)" />
-          )}
-          {hover !== null && hoverPt && (
-            <g pointerEvents="none">
-              <line
-                x1={px(hover)}
-                x2={px(hover)}
-                y1={pad.top}
-                y2={pad.top + plotH}
-                stroke="var(--control)"
-                strokeWidth="1"
-              />
-              <circle
-                cx={px(hover)}
-                cy={geom.y(hoverPt.value)}
-                r="3.5"
-                fill="var(--chart-1)"
-                stroke="var(--surface)"
+            ))}
+            {geom.path2 && (
+              <path
+                d={geom.path2}
+                fill="none"
+                stroke="var(--chart-1)"
+                strokeOpacity="0.35"
                 strokeWidth="1.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
               />
-            </g>
-          )}
-        </svg>
-      )}
-      {hover !== null && hoverPt && (
-        <div
-          className="pointer-events-none absolute z-10 rounded-card bg-raised px-2 py-1 text-small shadow-card"
-          style={{
-            left: Math.min(Math.max(px(hover) - 60, 0), Math.max(width - 140, 0)),
-            top: 0,
-          }}
-        >
-          <span className="font-mono text-muted">{fmtPointTs(hoverPt.ts, geom!.span)}</span>
-          <span className="mx-2 text-rule">·</span>
-          <span className="font-mono text-text">{formatValue(hoverPt.value)}</span>
-        </div>
-      )}
+            )}
+            <path
+              d={geom.path}
+              fill="none"
+              stroke="var(--chart-1)"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            {points.length === 1 && points[0]!.value !== null && (
+              <circle cx={geom.x(points[0]!.ts)} cy={geom.y(points[0]!.value!)} r="3.5" fill="var(--chart-1)" />
+            )}
+            {hover !== null && hoverPt && (
+              <g pointerEvents="none">
+                <line
+                  x1={px(hover)}
+                  x2={px(hover)}
+                  y1={pad.top}
+                  y2={pad.top + plotH}
+                  stroke="var(--control)"
+                  strokeWidth="1"
+                />
+                {hoverPt.value !== null && (
+                  <circle
+                    cx={px(hover)}
+                    cy={geom.y(hoverPt.value)}
+                    r="3.5"
+                    fill="var(--chart-1)"
+                    stroke="var(--surface)"
+                    strokeWidth="1.5"
+                  />
+                )}
+                {hoverSec && hoverSec.value !== null && (
+                  <circle
+                    cx={px(hover)}
+                    cy={geom.y(hoverSec.value)}
+                    r="3.5"
+                    fill="var(--chart-1)"
+                    fillOpacity="0.35"
+                    stroke="var(--surface)"
+                    strokeWidth="1.5"
+                  />
+                )}
+              </g>
+            )}
+          </svg>
+        )}
+        {hover !== null && hoverPt && (
+          <div
+            className="pointer-events-none absolute z-10 rounded-card bg-raised px-2 py-1 text-small shadow-card"
+            style={{
+              left: Math.min(Math.max(px(hover) - 60, 0), Math.max(width - 140, 0)),
+              top: 0,
+            }}
+          >
+            <span className="font-mono text-muted">{fmtPointTs(hoverPt.ts, geom!.span)}</span>
+            <span className="mx-2 text-rule">·</span>
+            <span className="font-mono text-text">
+              {hoverPt.value === null ? "–" : formatValue(hoverPt.value)}
+            </span>
+            {hoverSec && legend && (
+              <>
+                <span className="mx-2 text-rule">·</span>
+                <span className="text-muted">{legend.secondary}</span>{" "}
+                <span className="font-mono text-text">
+                  {hoverSec.value === null ? "–" : formatValue(hoverSec.value)}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
