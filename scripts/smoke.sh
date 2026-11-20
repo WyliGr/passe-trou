@@ -211,4 +211,35 @@ echo "$BODY" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
 })' "$ACCOUNT_ID" "Smoke Mock $RUN" "$EXPECT_COST" || die "overview assertions failed: $BODY"
 ok 7 "overview: 1 request on smoke account, todayCostUsd=$EXPECT_COST"
 
+# --- 8. analytics (M2 routes; skipped while not merged) ---------------------
+PROBE="$(curl -sS --max-time 10 -o "$TMP/body.json" -w "%{http_code}" "$BASE/admin/analytics/summary" \
+  -H "Authorization: Bearer $ADMIN_TOKEN")" || die "analytics probe curl failed to run"
+
+if [ "$PROBE" = "404" ]; then
+  echo "SKIP analytics (endpoint not merged yet)"
+else
+  [ "$PROBE" = "200" ] || die "GET /admin/analytics/summary → $PROBE (want 200): $(cat "$TMP/body.json")"
+  BODY="$(cat "$TMP/body.json")"
+  echo "$BODY" | json_get total.requests >/dev/null || die "summary body unexpected: $BODY"
+
+  TODAY="$(date -u +%Y-%m-%d)"
+  req 200 GET "/admin/analytics/timeseries?bucket=hour&from=${TODAY}T00:00:00Z" "" "$ADMIN_TOKEN"
+  echo "$BODY" | json_get series >/dev/null || die "timeseries body unexpected: $BODY"
+
+  req 200 GET /admin/requests "" "$ADMIN_TOKEN"
+  echo "$BODY" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+    if(!Array.isArray(JSON.parse(s).rows)) process.exit(1);
+  })' || die "/admin/requests rows missing or not an array: $BODY"
+
+  # SSE feed: hello event first, event-stream content type. --max-time 3
+  # aborts the open stream (exit 28) once we have the first bytes — expected.
+  curl -sN --max-time 3 -D "$TMP/feed.headers" -o "$TMP/feed.out" "$BASE/admin/analytics/feed" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null || true
+  grep -qi 'content-type:[[:space:]]*text/event-stream' "$TMP/feed.headers" \
+    || die "feed content-type unexpected: $(cat "$TMP/feed.headers")"
+  head -c 4096 "$TMP/feed.out" | grep -q '^event: hello' \
+    || die "feed missing hello event: $(head -c 500 "$TMP/feed.out")"
+  ok 8 "analytics: summary + timeseries(hour) + requests rows + feed hello"
+fi
+
 echo "SMOKE OK (port=$PORT run=$RUN)"
