@@ -255,6 +255,44 @@ describe("GET /admin/analytics/timeseries", () => {
     expect(body.series[0]).toMatchObject({ key: f.member.id, label: f.member.name });
   });
 
+  it("buckets stay UTC-aligned even when the DB session TimeZone is non-UTC", async () => {
+    const { createPrismaClient } = await import("../src/db.ts");
+    const { testDatabaseUrl } = await import("./setup.ts");
+    // Session pinned to a negative-offset zone: without an explicit UTC pin,
+    // date_trunc(day) would land buckets on 05:00Z.
+    const weirdDb = createPrismaClient(`${testDatabaseUrl()}?options=-c%20TimeZone%3DAmerica%2FNew_York`);
+    // Insert via the normal (UTC-session) client so the row is a true
+    // 2025-01-02T02:30Z instant; the NY-session query must still bucket it
+    // under 2025-01-02T00:00Z.
+    await makeReq(db, { ts: new Date("2025-01-02T02:30:00Z") });
+    const res = await testApp({ db: weirdDb }).request(
+      "/admin/analytics/timeseries?bucket=day&from=2025-01-01T06:00:00Z&to=2025-01-03T23:00:00Z",
+      { headers: adminHeaders() },
+    );
+    const body = (await res.json()) as TimeseriesResponse;
+    expect(body.series[0].points.map((p) => p.ts)).toEqual([
+      "2025-01-01T00:00:00.000Z",
+      "2025-01-02T00:00:00.000Z",
+      "2025-01-03T00:00:00.000Z",
+    ]);
+    expect(body.series[0].points.map((p) => (p as ValuePoint).value)).toEqual([0, 1, 0]);
+  });
+
+  it("400 when the window spans an excessive number of buckets", async () => {
+    const res = await testApp().request(
+      "/admin/analytics/timeseries?bucket=hour&from=2020-01-01T00:00:00Z&to=2025-01-01T00:00:00Z",
+      { headers: adminHeaders() },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("tokens metric: sums beyond int4 range return as numbers", async () => {
+    await makeReq(db, { ts: new Date("2025-01-01T01:00:00Z"), promptTokens: 2_000_000_000, completionTokens: 2_000_000_000 });
+    await makeReq(db, { ts: new Date("2025-01-01T01:30:00Z"), promptTokens: 2_000_000_000, completionTokens: null });
+    const { body } = await timeseries("?metric=tokens&from=2025-01-01T00:00:00Z&to=2025-01-01T02:00:00Z");
+    expect((body.series[0].points[1] as ValuePoint).value).toBe(6_000_000_000);
+  });
+
   it("grouped series capped at 25", async () => {
     const models = [];
     for (let i = 0; i < 30; i++) {

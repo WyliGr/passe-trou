@@ -30,8 +30,8 @@ const GROUP_SQL: Record<GroupBy, { expr: string; joinAccounts: boolean }> = {
 interface AggRow {
   bucket: Date;
   gkey: string | null;
-  n: number;
-  tokens: number;
+  n: bigint | number;
+  tokens: bigint | number;
   cost: number;
   avg_latency: number | null;
   p95: number | null;
@@ -62,21 +62,31 @@ export function analyticsRouter(db: Db) {
     if (from.getTime() >= to.getTime()) {
       throw new ApiError(400, "invalid_request", "`from` must be before `to`");
     }
+    // Cap the bucket grid: one generate_series row per bucket, one JSON point
+    // per bucket per series — an unbounded window is an OOM footgun.
+    const unitMs = q.bucket === "hour" ? 3_600_000 : 86_400_000;
+    if (Math.floor((to.getTime() - from.getTime()) / unitMs) + 2 > 10_000) {
+      throw new ApiError(400, "invalid_request", "window too large: > 10000 buckets");
+    }
 
     const unit = q.bucket;
     const step = q.bucket === "hour" ? "1 hour" : "1 day";
 
+    // SET LOCAL pins the bucket grid to UTC regardless of the pooled
+    // connection's session TimeZone.
     let rows: AggRow[];
     if (q.groupBy) {
       const g = GROUP_SQL[q.groupBy];
       const join = g.joinAccounts ? Prisma.raw('LEFT JOIN "accounts" a ON a.id = r."accountId"') : Prisma.empty;
-      rows = await db.$queryRaw<AggRow[]>`
+      [, rows] = await db.$transaction([
+        db.$executeRaw`SET LOCAL TIME ZONE 'UTC'`,
+        db.$queryRaw<AggRow[]>`
         WITH buckets AS (
           SELECT generate_series(date_trunc(${unit}, ${from}::timestamptz), date_trunc(${unit}, ${to}::timestamptz), ${step}::interval) AS bucket
         ), agg AS (
           SELECT date_trunc(${unit}, r.ts) AS bucket, ${Prisma.raw(g.expr)} AS gkey,
-                 count(*)::int AS n,
-                 sum(coalesce(r."promptTokens", 0) + coalesce(r."completionTokens", 0))::int AS tokens,
+                 count(*)::bigint AS n,
+                 sum(coalesce(r."promptTokens", 0)::bigint + coalesce(r."completionTokens", 0)::bigint)::bigint AS tokens,
                  round(sum(r."costUsd")::numeric, 6)::float8 AS cost,
                  avg(r."latencyMs")::float8 AS avg_latency,
                  percentile_cont(0.95) WITHIN GROUP (ORDER BY r."latencyMs")::float8 AS p95
@@ -85,20 +95,23 @@ export function analyticsRouter(db: Db) {
           GROUP BY 1, 2
         )
         SELECT b.bucket, a.gkey,
-               coalesce(a.n, 0)::int AS n,
-               coalesce(a.tokens, 0)::int AS tokens,
+               coalesce(a.n, 0)::bigint AS n,
+               coalesce(a.tokens, 0)::bigint AS tokens,
                coalesce(a.cost, 0)::float8 AS cost,
                a.avg_latency, a.p95
         FROM buckets b LEFT JOIN agg a ON a.bucket = b.bucket
-        ORDER BY b.bucket ASC`;
+        ORDER BY b.bucket ASC`,
+      ]);
     } else {
-      rows = await db.$queryRaw<AggRow[]>`
+      [, rows] = await db.$transaction([
+        db.$executeRaw`SET LOCAL TIME ZONE 'UTC'`,
+        db.$queryRaw<AggRow[]>`
         WITH buckets AS (
           SELECT generate_series(date_trunc(${unit}, ${from}::timestamptz), date_trunc(${unit}, ${to}::timestamptz), ${step}::interval) AS bucket
         ), agg AS (
           SELECT date_trunc(${unit}, r.ts) AS bucket,
-                 count(*)::int AS n,
-                 sum(coalesce(r."promptTokens", 0) + coalesce(r."completionTokens", 0))::int AS tokens,
+                 count(*)::bigint AS n,
+                 sum(coalesce(r."promptTokens", 0)::bigint + coalesce(r."completionTokens", 0)::bigint)::bigint AS tokens,
                  round(sum(r."costUsd")::numeric, 6)::float8 AS cost,
                  avg(r."latencyMs")::float8 AS avg_latency,
                  percentile_cont(0.95) WITHIN GROUP (ORDER BY r."latencyMs")::float8 AS p95
@@ -107,12 +120,13 @@ export function analyticsRouter(db: Db) {
           GROUP BY 1
         )
         SELECT b.bucket, NULL AS gkey,
-               coalesce(a.n, 0)::int AS n,
-               coalesce(a.tokens, 0)::int AS tokens,
+               coalesce(a.n, 0)::bigint AS n,
+               coalesce(a.tokens, 0)::bigint AS tokens,
                coalesce(a.cost, 0)::float8 AS cost,
                a.avg_latency, a.p95
         FROM buckets b LEFT JOIN agg a ON a.bucket = b.bucket
-        ORDER BY b.bucket ASC`;
+        ORDER BY b.bucket ASC`,
+      ]);
     }
 
     // Collect the group keys that actually have rows (n>0 with a null gkey =
@@ -189,7 +203,12 @@ function makePoint(metric: string, ts: string, row: AggRow | undefined | null): 
   if (metric === "latency") {
     return { ts, avg: row?.avg_latency ?? null, p95: row?.p95 ?? null };
   }
-  const value = metric === "requests" ? (row?.n ?? 0) : metric === "tokens" ? (row?.tokens ?? 0) : (row?.cost ?? 0);
+  const value =
+    metric === "requests"
+      ? Number(row?.n ?? 0)
+      : metric === "tokens"
+        ? Number(row?.tokens ?? 0)
+        : (row?.cost ?? 0);
   return { ts, value };
 }
 
