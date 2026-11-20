@@ -7,6 +7,7 @@ import { membersRouter } from "./members.ts";
 import { modelsRouter } from "./models.ts";
 import { overviewRouter } from "./overview.ts";
 import { pricesRouter } from "./prices.ts";
+import { analyticsRouter } from "./analytics.ts";
 import { providersRouter } from "./providers.ts";
 import { testConnectionRouter } from "./test-connection.ts";
 
@@ -21,6 +22,7 @@ export function adminRouter(deps: AppDeps) {
   r.route("/", keysRouter(deps.db));
   r.route("/", pricesRouter(deps.db));
   r.route("/", overviewRouter(deps.db));
+  r.route("/", analyticsRouter(deps.db));
   r.route("/", testConnectionRouter(deps.db, deps.masterKey));
   return r;
 }
