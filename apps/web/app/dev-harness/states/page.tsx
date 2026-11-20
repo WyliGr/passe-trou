@@ -5,6 +5,7 @@
 // (leading-underscore folders are private to the App Router).
 
 import { useState } from "react";
+import { BarList } from "@/components/BarList";
 import { Drawer } from "@/components/Drawer";
 import { Empty } from "@/components/Empty";
 import { ErrorBlock } from "@/components/ErrorBlock";
@@ -17,11 +18,27 @@ import { Skeleton, SkeletonRows } from "@/components/Skeleton";
 import { Table, type Column } from "@/components/Table";
 import { ApiError } from "@/lib/api";
 import { fmtCost, fmtInt } from "@/lib/format";
+import type { RankedRow } from "@/lib/analytics";
 
 const now = Date.now();
 const SERIES: LinePoint[] = [
   0, 0, 2, 1, 0, 4, 9, 14, 11, 18, 26, 31, 22, 25, 19, 30, 27, 16, 8, 5, 3, 1, 0, 0,
 ].map((value, i, arr) => ({ ts: now - (arr.length - 1 - i) * 3600_000, value }));
+
+// Analytics bar-list fixture: 11 groups so the list caps at 8 rows + a "+3 more" line.
+const BAR_ROWS: RankedRow[] = [
+  { id: "cc", name: "CommandCode", value: 4.2311, share: 0.78 },
+  { id: "mistral", name: "Mistral", value: 0.4812, share: 0.09 },
+  { id: "groq", name: "Groq", value: 0.3222, share: 0.06 },
+  { id: "cf", name: "Cloudflare workers", value: 0.1611, share: 0.03 },
+  { id: "dn", name: "Deep network", value: 0.1071, share: 0.02 },
+  { id: "loc", name: "Local vLLM", value: 0.059, share: 0.01 },
+  { id: "bk", name: "Backup upstream", value: 0.0214, share: 0.004 },
+  { id: "exp", name: "Experiments", value: 0.008, share: 0.0015 },
+  { id: "old1", name: "Legacy one", value: 0.0012, share: 0.0002 },
+  { id: "old2", name: "Legacy two", value: 0.0008, share: 0.0001 },
+  { id: "old3", name: "Legacy three", value: 0.0004, share: 0.0001 },
+];
 
 type Row = { account: string; provider: string; status: React.ReactNode; req: number; cost: number };
 const ROWS: Row[] = [
@@ -100,6 +117,31 @@ export default function DevStatesPage() {
 
       <Block title="LineChart — single point">
         <LineChart points={[{ ts: now - 3600_000, value: 3 }]} formatValue={(v) => fmtInt(v)} />
+      </Block>
+
+      <Block title="LineChart — avg + p95 overlay (analytics latency tab)">
+        <LineChart
+          points={SERIES.map((p) => ({ ts: p.ts, value: 420 + p.value * 12 }))}
+          overlay={{ points: SERIES.map((p) => ({ ts: p.ts, value: 900 + p.value * 41 })), label: "P95" }}
+          label="Avg"
+          formatValue={(v) => `${fmtInt(v)} ms`}
+          ariaLabel="Avg and p95 latency per hour"
+        />
+      </Block>
+
+      <Block title="Bar list — 8 rows + “+3 more” (analytics by-group panel)">
+        <BarList rows={BAR_ROWS} formatValue={fmtCost} />
+      </Block>
+
+      <Block title="Analytics panel — empty">
+        <Empty sentence="No data in this window." />
+      </Block>
+
+      <Block title="Analytics panel — error, verbatim + retry">
+        <ErrorBlock
+          error={new ApiError("invalid_request", "window too large: > 10000 buckets", 400)}
+          onRetry={() => undefined}
+        />
       </Block>
 
       <Block title="Table">
