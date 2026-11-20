@@ -373,7 +373,7 @@ export default function RequestsPage() {
                   {paging ? "Loading…" : "Load earlier"}
                 </button>
               ) : rows.length > 0 ? (
-                <p className="text-small text-muted">that's everything</p>
+                <p className="text-small text-muted">{"that's everything"}</p>
               ) : null}
             </div>
           </>
