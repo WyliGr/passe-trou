@@ -61,6 +61,121 @@ const ZERO_METRICS: Metrics = {
   p95TtftMs: null,
 };
 
+/**
+ * Seed the spanning fixture. Metrics chosen so every aggregate is exactly
+ * assertable; R5 is 8 days old (outside the default 7d window);
+ * R4's model is deleted after insert (FK null → group "none", label null);
+ * R2 is an error row with null ttft and all-null metric fields.
+ */
+async function seedFixture() {
+  const tag = crypto.randomUUID().slice(0, 8);
+  const p1 = await db.provider.create({ data: { name: `alpha-${tag}`, kind: "openai" } });
+  const p2 = await db.provider.create({ data: { name: `beta-${tag}`, kind: "openai" } });
+  const a1 = await db.account.create({ data: { providerId: p1.id, label: `acct-a1-${tag}` } });
+  const a2 = await db.account.create({ data: { providerId: p2.id, label: `acct-a2-${tag}` } });
+  const mo1 = await db.model.create({ data: { name: `m-a-${tag}` } });
+  const mo2 = await db.model.create({ data: { name: `m-b-${tag}` } });
+  const moGone = await db.model.create({ data: { name: `m-gone-${tag}` } });
+  const m1 = await db.member.create({ data: { name: `mem-a-${tag}` } });
+  const m2 = await db.member.create({ data: { name: `mem-b-${tag}` } });
+  const k1 = await db.apiKey.create({
+    data: { memberId: m1.id, label: "heermes", prefix: `pt-${tag}`, sha256: `sha-k1-${tag}` },
+  });
+  const k2 = await db.apiKey.create({
+    data: { memberId: m2.id, label: "vox", prefix: `pt-x${tag}`, sha256: `sha-k2-${tag}` },
+  });
+
+  const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000);
+  const base = { requestedModel: "x", upstreamModel: "x", wireFormat: "openai" as const, stream: true };
+  await db.request.createMany({
+    data: [
+      { ...base, ts: hoursAgo(1), keyId: k1.id, memberId: m1.id, accountId: a1.id, modelId: mo1.id,
+        status: "ok", httpStatus: 200, latencyMs: 100, ttftMs: 50,
+        promptTokens: 1000, completionTokens: 500, reasoningTokens: 100, cachedTokens: 200,
+        toolCallCount: 2, costUsd: 0.1 },
+      { ...base, ts: hoursAgo(2), keyId: k1.id, memberId: m1.id, accountId: a1.id, modelId: mo2.id,
+        status: "error", httpStatus: 500, errorCode: "upstream_error", latencyMs: 200, ttftMs: null },
+      { ...base, ts: hoursAgo(3), keyId: k2.id, memberId: m2.id, accountId: a2.id, modelId: mo1.id,
+        status: "ok", httpStatus: 200, latencyMs: 300, ttftMs: 150,
+        promptTokens: 4000, completionTokens: 1000, toolCallCount: 1, costUsd: 0.3 },
+      { ...base, ts: hoursAgo(4), keyId: k1.id, memberId: m1.id, accountId: a1.id, modelId: moGone.id,
+        status: "ok", httpStatus: 200, latencyMs: 400, ttftMs: 10,
+        promptTokens: 100, completionTokens: 50, reasoningTokens: 0, cachedTokens: 0,
+        toolCallCount: 0, costUsd: 0.01 },
+      { ...base, ts: hoursAgo(8 * 24), keyId: k2.id, memberId: m2.id, accountId: a2.id, modelId: mo1.id,
+        status: "ok", httpStatus: 200, latencyMs: 500, ttftMs: 200,
+        promptTokens: 5000, completionTokens: 5000, costUsd: 0.07 },
+    ],
+  });
+  await db.model.delete({ where: { id: moGone.id } }); // FK SetNull on R4
+
+  return { tag, p1, p2, a1, a2, mo1, mo2, m1, m2, k1, k2 };
+}
+
+describe("GET /admin/analytics/summary — provider axis, exact metrics", () => {
+  it("aggregates per provider over the default window (8-day-old row excluded)", async () => {
+    const f = await seedFixture();
+    const body = await summaryOk();
+
+    expect(body.total).toMatchObject({
+      requests: 4,
+      errors: 1,
+      errorRate: 0.25,
+      promptTokens: 5100,
+      completionTokens: 1550,
+      reasoningTokens: 100,
+      cachedTokens: 200,
+      toolCalls: 3,
+      costUsd: 0.41,
+      avgLatencyMs: 250,
+      avgTtftMs: 70,
+    });
+    expect(body.total.p95LatencyMs).toBeCloseTo(385, 6); // 300 + .85*(400-300)
+    expect(body.total.p95TtftMs).toBeCloseTo(140, 6); // 50 + .9*(150-50)
+
+    expect(body.rows).toHaveLength(2);
+    // costUsd desc: beta (0.30) before alpha (0.11)
+    expect(body.rows[0]!.key).toBe(f.p2.id);
+    expect(body.rows[1]!.key).toBe(f.p1.id);
+
+    const alpha = body.rows[1]!;
+    expect(alpha.label).toBe(f.p1.name);
+    expect(alpha).toMatchObject({
+      requests: 3,
+      errors: 1,
+      errorRate: 0.3333,
+      promptTokens: 1100,
+      completionTokens: 550,
+      reasoningTokens: 100,
+      cachedTokens: 200,
+      toolCalls: 2,
+      costUsd: 0.11,
+      avgTtftMs: 30,
+    });
+    expect(alpha.avgLatencyMs).toBeCloseTo(233.333333, 4);
+    expect(alpha.p95LatencyMs).toBeCloseTo(380, 6); // 200 + .9*(400-200)
+    expect(alpha.p95TtftMs).toBeCloseTo(48, 6); // 10 + .95*(50-10)
+
+    const beta = body.rows[0]!;
+    expect(beta.label).toBe(f.p2.name);
+    expect(beta).toMatchObject({
+      requests: 1,
+      errors: 0,
+      errorRate: 0,
+      promptTokens: 4000,
+      completionTokens: 1000,
+      reasoningTokens: 0,
+      cachedTokens: 0,
+      toolCalls: 1,
+      costUsd: 0.3,
+      avgLatencyMs: 300,
+      p95LatencyMs: 300,
+      avgTtftMs: 150,
+      p95TtftMs: 150,
+    });
+  });
+});
+
 describe("GET /admin/analytics/summary — query params", () => {
   it("rejects an unknown groupBy with 400", async () => {
     const res = await summary("?groupBy=bogus");
