@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { createApp } from "../src/app.ts";
 import { feedBus, type FeedRow } from "../src/lib/feedBus.ts";
 import { recordRequest } from "../src/proxy/capture.ts";
-import { adminHeaders, db, testApp } from "./setup.ts";
+import { adminHeaders, db, testApp, TEST_ADMIN_TOKEN, TEST_MASTER_KEY } from "./setup.ts";
 
 /**
  * M2-T3: GET /admin/analytics/feed — live SSE feed of persisted request rows.
@@ -94,7 +95,10 @@ describe("capture hook", () => {
       });
 
       const row = await waitFor(() => seen[0] ?? null);
-      const persisted = await waitFor(async () => (await db.request.findFirst()) ?? null);
+      // fetch by published id — never findFirst, an unrelated in-flight row would flake it
+      const persisted = await waitFor(
+        async () => (await db.request.findUnique({ where: { id: row.id } })) ?? null,
+      );
 
       expect(Object.keys(row).sort()).toEqual(
         [
@@ -152,12 +156,16 @@ async function readUntil(res: Response, want: string | RegExp, ms = 5000): Promi
   const deadline = Date.now() + ms;
   try {
     while (Date.now() < deadline) {
+      let timer: ReturnType<typeof setTimeout>;
       const { done, value } = await Promise.race([
         reader.read(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`readUntil timeout waiting for ${want}: ${text}`)), ms),
-        ),
-      ]);
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error(`readUntil timeout waiting for ${want}: ${text}`)),
+            ms,
+          );
+        }),
+      ]).finally(() => clearTimeout(timer));
       if (done) break;
       text += decoder.decode(value, { stream: true });
       if (typeof want === "string" ? text.includes(want) : want.test(text)) return text;
@@ -229,6 +237,50 @@ describe("GET /admin/analytics/feed", () => {
       ...sampleRow(),
       ts: "2026-11-20T10:00:00.000Z",
     });
+    await res.body!.cancel();
+  });
+
+  it("two concurrent subscribers both receive the same event", async () => {
+    const resA = await connect();
+    const resB = await connect();
+    await Promise.all([readUntil(resA, "event: hello\n"), readUntil(resB, "event: hello\n")]);
+
+    feedBus.publish(sampleRow({ id: "req_both" }));
+    const [textA, textB] = await Promise.all([
+      readUntil(resA, "event: request\n"),
+      readUntil(resB, "event: request\n"),
+    ]);
+    const dataA = textA.match(/^event: request\ndata: (.*)$/m)![1];
+    const dataB = textB.match(/^event: request\ndata: (.*)$/m)![1];
+    expect(dataA).toBe(dataB);
+    expect((JSON.parse(dataA) as { id: string }).id).toBe("req_both");
+
+    await Promise.all([resA.body!.cancel(), resB.body!.cancel()]);
+  });
+
+  it("client close unsubscribes — listener count returns to baseline (no leak)", async () => {
+    const baseline = feedBus.listenerCount();
+    const res = await connect();
+    await readUntil(res, "event: hello\n");
+    expect(feedBus.listenerCount()).toBe(baseline + 1);
+
+    await res.body!.cancel();
+    expect(feedBus.listenerCount()).toBe(baseline);
+  });
+
+  it("sends : ping heartbeats (short injected interval)", async () => {
+    const app = createApp({
+      db,
+      adminToken: TEST_ADMIN_TOKEN,
+      masterKey: TEST_MASTER_KEY,
+      feedHeartbeatMs: 50,
+    });
+    const res = await app.request("/admin/analytics/feed", { headers: adminHeaders() });
+    expect(res.status).toBe(200);
+    await readUntil(res, "event: hello\n");
+    const text = await readUntil(res, /\n: ping\n\n/);
+    // two beats may already have landed; only need to prove beats arrive
+    expect((text.match(/: ping\n\n/g) ?? []).length).toBeGreaterThanOrEqual(1);
     await res.body!.cancel();
   });
 });
