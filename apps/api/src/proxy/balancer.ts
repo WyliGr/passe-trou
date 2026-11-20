@@ -25,7 +25,7 @@ const MAX_COOLDOWN_SEC = 1800;
 
 export class Balancer {
   private readonly now: NowFn;
-  private readonly persist?: PersistFn;
+  private readonly persist: PersistFn | undefined;
   private readonly starts = new Map<string, number[]>();
   private readonly strikes = new Map<string, number>();
   private readonly cooldowns = new Map<string, number>(); // accountId → until ms
@@ -73,6 +73,13 @@ export class Balancer {
     this.persist?.(accountId, new Date(until));
   }
 
+  /** Restore a persisted Account.cooledDownUntil after restart; past/null are ignored. */
+  hydrate(accountId: string, until: Date | null): void {
+    if (!until) return;
+    const ms = until.getTime();
+    if (ms > this.now()) this.cooldowns.set(accountId, ms);
+  }
+
   /** Seconds of cooldown left for the mapping's account; null when not cooling. */
   cooldownRemainingSec(mappingId: string): number | null {
     const accountId = this.mappingAccount.get(mappingId);
@@ -109,7 +116,11 @@ export class Balancer {
   }
 }
 
-/** Process-wide singleton; cooldowns persist to Account.cooledDownUntil (fire-and-forget). */
+/**
+ * Process-wide singleton; cooldowns persist to Account.cooledDownUntil
+ * (fire-and-forget). After a restart the request path must `hydrate` from
+ * those rows — resolveRequest already loads the account columns.
+ */
 export const balancer = new Balancer({
   persist: (accountId, until) => {
     void getDb()

@@ -96,6 +96,22 @@ describe("trip — circuit breaker with per-account cooldown", () => {
     expect(calls).toEqual([{ accountId: "acctA", until: new Date(1_000_000 + 120_000) }]);
   });
 
+  it("hydrate restores persisted cooldowns after a restart", () => {
+    const clock = fakeClock();
+    const fresh = new Balancer({ now: clock.now }); // post-restart: memory empty
+    fresh.hydrate("acctA", new Date(1_000_000 + 120_000));
+    expect(fresh.pick([A, B])).toBe("mB");
+    expect(fresh.cooldownRemainingSec("mA")).toBe(120);
+  });
+
+  it("hydrate ignores null and already-expired cooldowns", () => {
+    const clock = fakeClock();
+    const fresh = new Balancer({ now: clock.now });
+    fresh.hydrate("acctA", null);
+    fresh.hydrate("acctB", new Date(1_000_000 - 1));
+    expect(fresh.pick([A, B])).toBe("mA");
+  });
+
   it("cooldownRemainingSec is null for unknown mappings and expired cooldowns", () => {
     const clock = fakeClock();
     const b = new Balancer({ now: clock.now });
