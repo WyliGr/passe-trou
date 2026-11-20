@@ -5,6 +5,7 @@ import { credentialsRouter } from "./credentials.ts";
 import { keysRouter } from "./keys.ts";
 import { membersRouter } from "./members.ts";
 import { modelsRouter } from "./models.ts";
+import { pricesRouter } from "./prices.ts";
 import { providersRouter } from "./providers.ts";
 import { testConnectionRouter } from "./test-connection.ts";
 
@@ -17,6 +18,7 @@ export function adminRouter(deps: AppDeps) {
   r.route("/", modelsRouter(deps.db));
   r.route("/", membersRouter(deps.db));
   r.route("/", keysRouter(deps.db));
+  r.route("/", pricesRouter(deps.db));
   r.route("/", testConnectionRouter(deps.db, deps.masterKey));
   return r;
 }
