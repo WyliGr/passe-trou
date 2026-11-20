@@ -1,4 +1,5 @@
 import { beforeEach } from "vitest";
+import { createApp } from "../src/app.ts";
 import { createPrismaClient, type Db } from "../src/db.ts";
 import { loadLocalEnv } from "../src/env.ts";
 
@@ -13,6 +14,22 @@ export function testDatabaseUrl(): string {
 }
 
 export const db: Db = createPrismaClient(testDatabaseUrl());
+
+/** Fixed 32-byte key for all crypto tests; never used outside tests. */
+export const TEST_MASTER_KEY = Buffer.from("cd".repeat(32), "hex");
+export const TEST_ADMIN_TOKEN = "test-admin-token-c2VyeC1zZWNyZXQ";
+
+export function testApp(overrides: { db?: Db; adminToken?: string } = {}) {
+  return createApp({
+    db: overrides.db ?? db,
+    adminToken: overrides.adminToken ?? TEST_ADMIN_TOKEN,
+    masterKey: TEST_MASTER_KEY,
+  });
+}
+
+export function adminHeaders(): Record<string, string> {
+  return { authorization: `Bearer ${TEST_ADMIN_TOKEN}` };
+}
 
 /** FK-safe full reset; runs before each test in every file. */
 beforeEach(async () => {

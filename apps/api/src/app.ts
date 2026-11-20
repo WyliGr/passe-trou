@@ -4,10 +4,14 @@ import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { pinoHttp } from "pino-http";
 import { ZodError } from "zod";
+import { adminAuth } from "./admin/middleware.ts";
 import type { Db } from "./db.ts";
 
 export interface AppDeps {
   db: Db;
+  adminToken: string;
+  /** 32-byte AES-256 key for upstream credential vault. */
+  masterKey: Buffer;
 }
 
 export interface ErrorShape {
@@ -66,6 +70,8 @@ export function createApp(deps: AppDeps) {
       return c.json(errorShape("db_unavailable", "database health check failed"), 503);
     }
   });
+
+  app.use("/admin/*", adminAuth(deps.adminToken));
 
   app.notFound((c) => c.json(errorShape("not_found", `no route ${c.req.method} ${c.req.path}`), 404));
 
