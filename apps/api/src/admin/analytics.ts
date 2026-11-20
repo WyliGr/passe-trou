@@ -10,7 +10,7 @@ import { feedBus, type FeedRow } from "../lib/feedBus.ts";
 
 export interface AnalyticsFeedOptions {
   /** Heartbeat interval in ms (tests inject a short one). */
-  heartbeatMs?: number;
+  heartbeatMs?: number | undefined;
 }
 
 /** Spec order — SSE data JSON keeps exactly these keys in this order. */
