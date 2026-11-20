@@ -3,6 +3,7 @@ import type { AppDeps } from "../app.ts";
 import { accountsRouter } from "./accounts.ts";
 import { credentialsRouter } from "./credentials.ts";
 import { providersRouter } from "./providers.ts";
+import { testConnectionRouter } from "./test-connection.ts";
 
 /** All /admin routes; mounted under adminAuth in app.ts. */
 export function adminRouter(deps: AppDeps) {
@@ -10,5 +11,6 @@ export function adminRouter(deps: AppDeps) {
   r.route("/", providersRouter(deps.db));
   r.route("/", accountsRouter(deps.db));
   r.route("/", credentialsRouter(deps.db, deps.masterKey));
+  r.route("/", testConnectionRouter(deps.db, deps.masterKey));
   return r;
 }
