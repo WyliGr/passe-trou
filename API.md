@@ -145,6 +145,96 @@ curl $PT/admin/overview -H "Authorization: Bearer $ADMIN_TOKEN"
 }
 ```
 
+## Admin — analytics
+
+All four are admin Bearer. Metrics only — never any prompt/response content (none is persisted). All timestamps ISO 8601 UTC; invalid query params → 400.
+
+### `GET /admin/analytics/summary` — grouped aggregates
+
+Query params: `groupBy` = `provider|account|model|key|member` (default `provider`) · `from`,`to` ISO datetimes (default `from` = now−7d, `to` = now) — 400 on unparseable dates or `from ≥ to`.
+
+```bash
+curl "$PT/admin/analytics/summary?groupBy=account&from=2026-11-13T00:00:00Z&to=2026-11-20T00:00:00Z" -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+```json
+{
+  "from": "2026-11-13T00:00:00.000Z", "to": "2026-11-20T00:00:00.000Z", "groupBy": "account",
+  "total": {"requests": 137, "errors": 2, "errorRate": 0.0146, "promptTokens": 4102310, "completionTokens": 88211, "reasoningTokens": 0, "cachedTokens": 1024, "toolCalls": 3, "costUsd": 1.2314, "avgLatencyMs": 842, "p95LatencyMs": 2103, "avgTtftMs": 311, "p95TtftMs": 690},
+  "rows": [
+    {"key": "ACCOUNT_ID", "label": "compte-1", "requests": 96, "errors": 1, "errorRate": 0.0104, "promptTokens": 2900000, "completionTokens": 60210, "reasoningTokens": 0, "cachedTokens": 512, "toolCalls": 2, "costUsd": 0.8123, "avgLatencyMs": 801, "p95LatencyMs": 1950, "avgTtftMs": 298, "p95TtftMs": 640}
+  ]
+}
+```
+
+Every row carries the same metric fields as `total`. Token fields sum nulls as 0; `costUsd` rounded to 6 decimals; avg/p95 over `latencyMs`, and over non-null `ttftMs` only (null when the group has no ttft data). Deleted entities group under their raw id with `label: null`. Rows sort by `costUsd` desc. Empty window → zeroed `total` + empty `rows` (not an error).
+
+### `GET /admin/analytics/timeseries` — bucketed series
+
+Query params: `metric` = `requests|tokens|cost|latency` (default `requests`) · `bucket` = `hour|day` (default `hour`) · `from`,`to` (default now−24h for `hour`, now−30d for `day`) · optional `groupBy` = `provider|account|model|key|member`.
+
+```bash
+curl "$PT/admin/analytics/timeseries?metric=cost&bucket=hour" -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+```json
+{
+  "from": "2026-11-19T10:00:00.000Z", "to": "2026-11-20T10:00:00.000Z", "bucket": "hour", "metric": "cost",
+  "series": [
+    {"key": "all", "label": null, "points": [{"ts": "2026-11-19T10:00:00.000Z", "value": 0}, {"ts": "2026-11-19T11:00:00.000Z", "value": 0.2031}]}
+  ]
+}
+```
+
+Every bucket in `from..to` is present, zero-filled. `value` = count for `requests`, prompt+completion sum for `tokens`, 6-decimal cost sum for `cost`. For `latency` each point is `{"ts", "avg", "p95"}` (nulls on empty buckets) instead of `value`. With `groupBy`: one series per group in the window (labels resolved as in summary), sorted by total value desc, capped at 25 series. Ungrouped → single series with `key: "all"`, `label: null`.
+
+### `GET /admin/requests` — paginated request log
+
+Query params: `from`,`to` ISO · `keyId`,`memberId`,`accountId`,`modelId` · `status` = `ok|error|aborted` · `stream` = `true|false` · `errorCode` string · `minLatencyMs` int · `limit` int ≤ 200 (default 50) · `cursor` opaque (invalid → 400).
+
+```bash
+curl "$PT/admin/requests?memberId=MEMBER_ID&status=error&limit=10" -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+```json
+{
+  "rows": [
+    {"id": "…", "ts": "2026-11-20T09:58:11.000Z", "requestedModel": "fast-flash", "upstreamModel": "deepseek/deepseek-v4.1-flash", "wireFormat": "openai-compatible", "stream": true, "status": "ok", "httpStatus": 200, "errorCode": null, "latencyMs": 812, "ttftMs": 290, "promptTokens": 1024, "completionTokens": 64, "reasoningTokens": 0, "cachedTokens": 0, "toolCallCount": 0, "finishReason": "stop", "costUsd": 0.001152, "clientName": "opencode-worker-3",
+      "key": {"id": "…", "label": "smoke-agent", "prefix": "pt_abcd1234"},
+      "member": {"id": "…", "name": "Will"},
+      "account": {"id": "…", "displayName": "compte-1", "provider": "CommandCode"},
+      "model": {"id": "…", "name": "fast-flash"}}
+  ],
+  "nextCursor": null
+}
+```
+
+Newest first (`ts DESC, id DESC`); key/member/account/model are `null` when the entity was deleted (FKs SetNull). Cursor pagination is stable under concurrent inserts: pass `nextCursor` back as `cursor`; it is `null` when fewer rows than `limit` came back.
+
+### `GET /admin/analytics/feed` — live SSE stream
+
+Server-Sent Events. Headers: `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`.
+
+```bash
+curl -N "$PT/admin/analytics/feed" -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+On connect, one `hello` event:
+
+```
+event: hello
+data: {"ok":true,"ts":"2026-11-20T10:00:00.000Z"}
+```
+
+Then one `request` event per captured proxied call, as it lands:
+
+```
+event: request
+data: {"id":"…","ts":"…","requestedModel":"fast-flash","upstreamModel":"deepseek/deepseek-v4.1-flash","wireFormat":"openai-compatible","stream":true,"status":"ok","httpStatus":200,"latencyMs":812,"ttftMs":290,"promptTokens":1024,"completionTokens":64,"costUsd":0.001152,"keyId":"…","memberId":"…","accountId":"…","modelId":"…"}
+```
+
+A `: ping` heartbeat comment is sent every 15 s so idle connections survive proxies/browsers. No replay buffer: events missed while disconnected are lost — backfill via `GET /admin/requests`.
+
 ## Proxy — member key (`pt_xxxxxx…`) auth
 
 Passthrough only, no wire translation: request the edge matching the backing provider's type or get `400 wrong_wire_format` with a `hint`. Optional `x-client-name: <your-agent>` headers attribute rows in the feed. Every call lands one metrics-only `Request` row (bodies are never persisted).
