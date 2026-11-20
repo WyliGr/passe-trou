@@ -13,10 +13,15 @@ export function Table<Row>({
   columns,
   rows,
   rowKey,
+  onRowClick,
+  rowClassName,
 }: {
   columns: Column<Row>[];
   rows: Row[];
   rowKey: (row: Row, i: number) => React.Key;
+  /** Row becomes clickable (cursor + hover) when set. */
+  onRowClick?: (row: Row) => void;
+  rowClassName?: (row: Row) => string;
 }) {
   return (
     <table className="w-full border-collapse text-body">
@@ -37,7 +42,13 @@ export function Table<Row>({
       </thead>
       <tbody>
         {rows.map((row, i) => (
-          <tr key={rowKey(row, i)} className="h-[var(--row-height)] border-t border-rule">
+          <tr
+            key={rowKey(row, i)}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+            className={`h-[var(--row-height)] border-t border-rule ${
+              onRowClick ? "cursor-pointer hover:bg-raised/40" : ""
+            } ${rowClassName?.(row) ?? ""}`}
+          >
             {columns.map((col) => (
               <td
                 key={col.key}
