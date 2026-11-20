@@ -113,6 +113,7 @@ model Member {
   id        String    @id @default(cuid())
   name      String    @unique
   notes     String?
+  enabled   Boolean   @default(true)
   keys      ApiKey[]
   requests  Request[]
   createdAt DateTime  @default(now())

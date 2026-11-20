@@ -28,6 +28,7 @@ export type MemberMinAggregateOutputType = {
   id: string | null
   name: string | null
   notes: string | null
+  enabled: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -36,6 +37,7 @@ export type MemberMaxAggregateOutputType = {
   id: string | null
   name: string | null
   notes: string | null
+  enabled: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -44,6 +46,7 @@ export type MemberCountAggregateOutputType = {
   id: number
   name: number
   notes: number
+  enabled: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -54,6 +57,7 @@ export type MemberMinAggregateInputType = {
   id?: true
   name?: true
   notes?: true
+  enabled?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -62,6 +66,7 @@ export type MemberMaxAggregateInputType = {
   id?: true
   name?: true
   notes?: true
+  enabled?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -70,6 +75,7 @@ export type MemberCountAggregateInputType = {
   id?: true
   name?: true
   notes?: true
+  enabled?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -151,6 +157,7 @@ export type MemberGroupByOutputType = {
   id: string
   name: string
   notes: string | null
+  enabled: boolean
   createdAt: Date
   updatedAt: Date
   _count: MemberCountAggregateOutputType | null
@@ -180,6 +187,7 @@ export type MemberWhereInput = {
   id?: Prisma.StringFilter<"Member"> | string
   name?: Prisma.StringFilter<"Member"> | string
   notes?: Prisma.StringNullableFilter<"Member"> | string | null
+  enabled?: Prisma.BoolFilter<"Member"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Member"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Member"> | Date | string
   keys?: Prisma.ApiKeyListRelationFilter
@@ -190,6 +198,7 @@ export type MemberOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
+  enabled?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   keys?: Prisma.ApiKeyOrderByRelationAggregateInput
@@ -203,6 +212,7 @@ export type MemberWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.MemberWhereInput[]
   NOT?: Prisma.MemberWhereInput | Prisma.MemberWhereInput[]
   notes?: Prisma.StringNullableFilter<"Member"> | string | null
+  enabled?: Prisma.BoolFilter<"Member"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Member"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Member"> | Date | string
   keys?: Prisma.ApiKeyListRelationFilter
@@ -213,6 +223,7 @@ export type MemberOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
+  enabled?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.MemberCountOrderByAggregateInput
@@ -227,6 +238,7 @@ export type MemberScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"Member"> | string
   name?: Prisma.StringWithAggregatesFilter<"Member"> | string
   notes?: Prisma.StringNullableWithAggregatesFilter<"Member"> | string | null
+  enabled?: Prisma.BoolWithAggregatesFilter<"Member"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Member"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Member"> | Date | string
 }
@@ -235,6 +247,7 @@ export type MemberCreateInput = {
   id?: string
   name: string
   notes?: string | null
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   keys?: Prisma.ApiKeyCreateNestedManyWithoutMemberInput
@@ -245,6 +258,7 @@ export type MemberUncheckedCreateInput = {
   id?: string
   name: string
   notes?: string | null
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   keys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutMemberInput
@@ -255,6 +269,7 @@ export type MemberUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   keys?: Prisma.ApiKeyUpdateManyWithoutMemberNestedInput
@@ -265,6 +280,7 @@ export type MemberUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   keys?: Prisma.ApiKeyUncheckedUpdateManyWithoutMemberNestedInput
@@ -275,6 +291,7 @@ export type MemberCreateManyInput = {
   id?: string
   name: string
   notes?: string | null
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -283,6 +300,7 @@ export type MemberUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -291,6 +309,7 @@ export type MemberUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -299,6 +318,7 @@ export type MemberCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   notes?: Prisma.SortOrder
+  enabled?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -307,6 +327,7 @@ export type MemberMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   notes?: Prisma.SortOrder
+  enabled?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -315,6 +336,7 @@ export type MemberMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   notes?: Prisma.SortOrder
+  enabled?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -363,6 +385,7 @@ export type MemberCreateWithoutKeysInput = {
   id?: string
   name: string
   notes?: string | null
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   requests?: Prisma.RequestCreateNestedManyWithoutMemberInput
@@ -372,6 +395,7 @@ export type MemberUncheckedCreateWithoutKeysInput = {
   id?: string
   name: string
   notes?: string | null
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   requests?: Prisma.RequestUncheckedCreateNestedManyWithoutMemberInput
@@ -397,6 +421,7 @@ export type MemberUpdateWithoutKeysInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   requests?: Prisma.RequestUpdateManyWithoutMemberNestedInput
@@ -406,6 +431,7 @@ export type MemberUncheckedUpdateWithoutKeysInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   requests?: Prisma.RequestUncheckedUpdateManyWithoutMemberNestedInput
@@ -415,6 +441,7 @@ export type MemberCreateWithoutRequestsInput = {
   id?: string
   name: string
   notes?: string | null
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   keys?: Prisma.ApiKeyCreateNestedManyWithoutMemberInput
@@ -424,6 +451,7 @@ export type MemberUncheckedCreateWithoutRequestsInput = {
   id?: string
   name: string
   notes?: string | null
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   keys?: Prisma.ApiKeyUncheckedCreateNestedManyWithoutMemberInput
@@ -449,6 +477,7 @@ export type MemberUpdateWithoutRequestsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   keys?: Prisma.ApiKeyUpdateManyWithoutMemberNestedInput
@@ -458,6 +487,7 @@ export type MemberUncheckedUpdateWithoutRequestsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   keys?: Prisma.ApiKeyUncheckedUpdateManyWithoutMemberNestedInput
@@ -507,6 +537,7 @@ export type MemberSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   id?: boolean
   name?: boolean
   notes?: boolean
+  enabled?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   keys?: boolean | Prisma.Member$keysArgs<ExtArgs>
@@ -518,6 +549,7 @@ export type MemberSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   id?: boolean
   name?: boolean
   notes?: boolean
+  enabled?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["member"]>
@@ -526,6 +558,7 @@ export type MemberSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   id?: boolean
   name?: boolean
   notes?: boolean
+  enabled?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["member"]>
@@ -534,11 +567,12 @@ export type MemberSelectScalar = {
   id?: boolean
   name?: boolean
   notes?: boolean
+  enabled?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type MemberOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "notes" | "createdAt" | "updatedAt", ExtArgs["result"]["member"]>
+export type MemberOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "notes" | "enabled" | "createdAt" | "updatedAt", ExtArgs["result"]["member"]>
 export type MemberInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   keys?: boolean | Prisma.Member$keysArgs<ExtArgs>
   requests?: boolean | Prisma.Member$requestsArgs<ExtArgs>
@@ -557,6 +591,7 @@ export type $MemberPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     id: string
     name: string
     notes: string | null
+    enabled: boolean
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["member"]>
@@ -987,6 +1022,7 @@ export interface MemberFieldRefs {
   readonly id: Prisma.FieldRef<"Member", 'String'>
   readonly name: Prisma.FieldRef<"Member", 'String'>
   readonly notes: Prisma.FieldRef<"Member", 'String'>
+  readonly enabled: Prisma.FieldRef<"Member", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"Member", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Member", 'DateTime'>
 }
