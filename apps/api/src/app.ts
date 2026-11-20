@@ -5,6 +5,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { pinoHttp } from "pino-http";
 import { ZodError } from "zod";
 import { adminAuth } from "./admin/middleware.ts";
+import { adminRouter } from "./admin/index.ts";
 import type { Db } from "./db.ts";
 
 export interface AppDeps {
@@ -26,7 +27,7 @@ export function errorShape(code: string, message: string): ErrorShape {
 /** Domain error carrying an HTTP status and a machine-readable code. */
 export class ApiError extends Error {
   constructor(
-    public readonly status: 400 | 401 | 403 | 404 | 500,
+    public readonly status: 400 | 401 | 403 | 404 | 409 | 500,
     public readonly code: string,
     message?: string,
   ) {
@@ -72,6 +73,7 @@ export function createApp(deps: AppDeps) {
   });
 
   app.use("/admin/*", adminAuth(deps.adminToken));
+  app.route("/admin", adminRouter(deps));
 
   app.notFound((c) => c.json(errorShape("not_found", `no route ${c.req.method} ${c.req.path}`), 404));
 
