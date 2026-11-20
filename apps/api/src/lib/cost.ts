@@ -31,11 +31,13 @@ function matcherHits(matcher: string, upstreamModel: string): boolean {
 }
 
 /**
- * Resolution precedence: account-exact > provider-exact > account-glob > provider-glob.
- * Returns null when no price matches or when any needed token count is null —
- * cost is never guessed.
+ * Precedence: account-exact > provider-exact > account-glob > provider-glob.
+ * Null when no price matches.
  */
-export function computeCost(args: CostArgs, prices: PriceLike[]): number | null {
+export function findPrice(
+  args: { accountId: string; providerId: string; upstreamModel: string },
+  prices: PriceLike[],
+): PriceLike | null {
   const { accountId, providerId, upstreamModel } = args;
 
   const tiers: Array<(p: PriceLike) => boolean> = [
@@ -45,11 +47,20 @@ export function computeCost(args: CostArgs, prices: PriceLike[]): number | null 
     (p) => p.providerId === providerId && p.accountId === null && matcherHits(p.modelMatcher, upstreamModel),
   ];
 
-  let price: PriceLike | undefined;
   for (const tier of tiers) {
-    price = prices.find((p) => tier(p));
-    if (price) break;
+    const price = prices.find((p) => tier(p));
+    if (price) return price;
   }
+  return null;
+}
+
+/**
+ * Resolution precedence via findPrice.
+ * Returns null when no price matches or when any needed token count is null —
+ * cost is never guessed.
+ */
+export function computeCost(args: CostArgs, prices: PriceLike[]): number | null {
+  const price = findPrice(args, prices);
   if (!price) return null;
 
   if (args.promptTokens === null || args.completionTokens === null) return null;

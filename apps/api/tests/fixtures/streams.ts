@@ -27,6 +27,12 @@ export const OPENAI_STREAM_NO_USAGE: string = OPENAI_STREAM_WITH_USAGE.replace(
   "",
 );
 
+/** Same stream with 1M/1M tokens + 500k cached — capture.ts cost test fixture (Task 7 prices → 0.275). */
+export const OPENAI_STREAM_BIG_USAGE: string = OPENAI_STREAM_WITH_USAGE.replace(
+  /^data: \{.*"usage":.*\}$/m,
+  `data: {"id":"chatcmpl-mock1","object":"chat.completion.chunk","created":1730000000,"model":"big-usage-model","choices":[],"usage":{"prompt_tokens":1000000,"completion_tokens":1000000,"prompt_tokens_details":{"cached_tokens":500000}}}`,
+);
+
 /** Non-stream OpenAI response body. */
 export const OPENAI_JSON_BODY: string = JSON.stringify({
   id: "chatcmpl-mock2",

@@ -27,12 +27,21 @@ export function anthropicRouter(deps: { db: Db; masterKey: Buffer }) {
       throw new ApiError(400, "invalid_request", "model is required");
     }
 
-    const resolved = await resolveRequest(deps.db, requestedModel, "anthropic", c.get("key"));
+    const key = c.get("key");
+    const resolved = await resolveRequest(deps.db, requestedModel, "anthropic", key);
 
     return forwardToPool(c, deps, {
       resolved,
       upstreamPath: "messages",
       assembler: new AnthropicAssembler(),
+      capture: {
+        key,
+        model: resolved.model,
+        wireFormat: "anthropic",
+        stream: clientBody.stream === true,
+        startedAt: Date.now(),
+        clientName: c.req.header("x-client-name") ?? null,
+      },
       buildUpstreamBody: (mapping) => ({
         ...clientBody,
         model: mapping.upstreamModel ?? requestedModel,

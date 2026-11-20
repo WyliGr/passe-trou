@@ -4,7 +4,9 @@ import { ApiError } from "../app.ts";
 import type { Db } from "../db.ts";
 import { decryptSecret } from "../lib/crypto.ts";
 import { balancer } from "./balancer.ts";
+import { recordRequest, type CaptureBase } from "./capture.ts";
 import type { ResolvedMapping, ResolvedRequest } from "./resolve.ts";
+import type { UsageSnapshot } from "./assembleOpenAI.ts";
 
 /**
  * Shared proxy skeleton for both wire edges: balancer pick → upstream POST →
@@ -35,8 +37,19 @@ const SKIP_REQUEST_HEADERS = new Set([
 /** CommandCode's Cloudflare edge 403s default library UAs; absent client UA gets ours. */
 export const PASSE_TROU_UA = "passe-trou/0.1 (-https://github.com/WyliGr/passe-trou)";
 
+/** Terminal metrics a wire assembler can report at stream end (either edge). */
+export interface AssemblerSnapshot {
+  ttftMs: number | null;
+  usage?: UsageSnapshot;
+  toolCallCount: number;
+  finishReason?: string;
+  stopReason?: string;
+  modelServed?: string;
+}
+
 export interface StreamAssembler {
   feed(chunk: Uint8Array): void;
+  snapshot(): AssemblerSnapshot;
 }
 
 export interface ForwardOpts {
@@ -48,6 +61,8 @@ export interface ForwardOpts {
   assembler: StreamAssembler;
   /** Strip upstream terminal usage chunks from the client stream (forced include_usage). */
   suppressUsageChunks?: boolean;
+  /** Identity/context of the row persisted once at the terminal point. */
+  capture: CaptureBase;
 }
 
 interface UpstreamError {
@@ -64,6 +79,17 @@ export async function forwardToPool(
 ): Promise<Response> {
   const tried = new Set<string>();
   let lastError: UpstreamError | null = null;
+  let lastMapping: ResolvedMapping | null = null;
+
+  const recordError = (status: number, errorCode: string | null): void => {
+    recordRequest(deps.db, {
+      ...opts.capture,
+      mapping: lastMapping,
+      httpStatus: status,
+      outcome: "error",
+      errorCode,
+    });
+  };
 
   for (;;) {
     const candidates = opts.resolved.mappings
@@ -74,11 +100,15 @@ export async function forwardToPool(
     if (mappingId === null) {
       // No alternates left. All-cooling from the start → pool_exhausted;
       // mid-loop exhaustion → forward the last upstream error verbatim.
-      if (lastError) return forwardUpstreamError(c, lastError);
+      if (lastError) {
+        recordError(lastError.status, null);
+        return forwardUpstreamError(c, lastError);
+      }
       const remaining = opts.resolved.mappings
         .map((m) => balancer.cooldownRemainingSec(m.id))
         .filter((s): s is number => s !== null);
       const retryAfterSec = remaining.length > 0 ? Math.min(...remaining) : 0;
+      recordError(503, "pool_exhausted");
       return c.json(
         {
           error: {
@@ -94,6 +124,7 @@ export async function forwardToPool(
 
     const mapping = opts.resolved.mappings.find((m) => m.id === mappingId)!;
     tried.add(mappingId);
+    lastMapping = mapping;
     balancer.recordStart(mappingId);
 
     const attempt = await tryUpstream(c, deps, opts, mapping);
@@ -110,6 +141,7 @@ export async function forwardToPool(
     }
     // Definitive client-class error (400 etc.): forward as-is, never retry.
     balancer.recordDone(mappingId);
+    recordError(attempt.status, null);
     return forwardUpstreamError(c, lastError);
   }
 }
@@ -124,6 +156,7 @@ async function tryUpstream(
   opts: ForwardOpts,
   mapping: ResolvedMapping,
 ): Promise<Attempt> {
+  let onTerminal: ((cancelled: boolean) => void) | undefined;
   const account = mapping.account;
   const credential = await deps.db.accountCredential.findUnique({
     where: { accountId: account.id },
@@ -181,9 +214,23 @@ async function tryUpstream(
   const headersOut: Record<string, string> = {};
   const ct = res.headers.get("content-type");
   if (ct) headersOut["content-type"] = ct;
+  // Exactly one row per served request: close → ok, client cancel → aborted.
+  onTerminal = (cancelled: boolean): void => {
+    const snap = opts.assembler.snapshot();
+    recordRequest(deps.db, {
+      ...opts.capture,
+      mapping,
+      ttftMs: snap.ttftMs,
+      usage: snap.usage,
+      toolCallCount: snap.toolCallCount,
+      finishReason: snap.finishReason ?? snap.stopReason ?? null,
+      httpStatus: res.status,
+      outcome: cancelled ? "aborted" : "ok",
+    });
+  };
   const stream = opts.suppressUsageChunks
-    ? filteredPipe(res.body, opts.assembler, abort)
-    : teePipe(res.body, opts.assembler, abort);
+    ? filteredPipe(res.body, opts.assembler, abort, onTerminal)
+    : teePipe(res.body, opts.assembler, abort, onTerminal);
   return {
     ok: true,
     response: c.body(stream, res.status as ContentfulStatusCode, headersOut),
@@ -212,18 +259,31 @@ function parseRetryAfter(value: string | null): number | undefined {
   return Number.isFinite(sec) && sec >= 0 ? sec : undefined;
 }
 
+/** Fire at most once. */
+function once(fn: (cancelled: boolean) => void): (cancelled: boolean) => void {
+  let fired = false;
+  return (cancelled) => {
+    if (fired) return;
+    fired = true;
+    fn(cancelled);
+  };
+}
+
 /** Unparsed byte pipe upstream→client with a parallel assembler tap. */
 function teePipe(
   body: ReadableStream<Uint8Array>,
   assembler: StreamAssembler,
   abort: AbortController,
+  onTerminal: (cancelled: boolean) => void,
 ): ReadableStream<Uint8Array> {
   const reader = body.getReader();
+  const terminal = once(onTerminal);
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
         const { done, value } = await reader.read();
         if (done) {
+          terminal(false);
           controller.close();
           return;
         }
@@ -231,6 +291,7 @@ function teePipe(
         controller.enqueue(value);
       } catch {
         // Upstream died mid-stream: after first byte there is no retry — end the stream.
+        terminal(false);
         try {
           controller.close();
         } catch {
@@ -239,6 +300,7 @@ function teePipe(
       }
     },
     cancel() {
+      terminal(true);
       abort.abort();
       void reader.cancel().catch(() => {});
     },
@@ -255,8 +317,10 @@ function filteredPipe(
   body: ReadableStream<Uint8Array>,
   assembler: StreamAssembler,
   abort: AbortController,
+  onTerminal: (cancelled: boolean) => void,
 ): ReadableStream<Uint8Array> {
   const reader = body.getReader();
+  const terminal = once(onTerminal);
   let pending: Uint8Array = new Uint8Array(0);
   const frames: Uint8Array[] = [];
   let upstreamDone = false;
@@ -279,6 +343,7 @@ function filteredPipe(
             return;
           }
           if (upstreamDone) {
+            terminal(false);
             controller.close();
             return;
           }
@@ -291,6 +356,7 @@ function filteredPipe(
           }
         }
       } catch {
+        terminal(false);
         try {
           controller.close();
         } catch {
@@ -299,6 +365,7 @@ function filteredPipe(
       }
     },
     cancel() {
+      terminal(true);
       abort.abort();
       void reader.cancel().catch(() => {});
     },

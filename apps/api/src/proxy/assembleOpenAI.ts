@@ -5,10 +5,11 @@ import { parseSSE } from "../lib/sseParse.ts";
  * COPY of the byte stream. The stream to the client never waits on this.
  */
 
-/** Normalized per-request usage; field names mirror the OpenAI wire shape. */
+/** Normalized per-request usage; field names mirror the OpenAI wire shape.
+ * Fields null when the wire omits them (embeddings carry no completion count). */
 export interface UsageSnapshot {
-  prompt_tokens: number;
-  completion_tokens: number;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
   reasoning_tokens?: number;
   cached_tokens?: number;
 }
@@ -138,12 +139,12 @@ export class OpenAIAssembler {
 }
 
 function extractUsage(u: WireUsage): UsageSnapshot | undefined {
-  if (typeof u.prompt_tokens !== "number" || typeof u.completion_tokens !== "number") {
+  if (typeof u.prompt_tokens !== "number" && typeof u.completion_tokens !== "number") {
     return undefined;
   }
   const out: UsageSnapshot = {
-    prompt_tokens: u.prompt_tokens,
-    completion_tokens: u.completion_tokens,
+    prompt_tokens: typeof u.prompt_tokens === "number" ? u.prompt_tokens : null,
+    completion_tokens: typeof u.completion_tokens === "number" ? u.completion_tokens : null,
   };
   const reasoning = u.completion_tokens_details?.reasoning_tokens;
   if (typeof reasoning === "number") out.reasoning_tokens = reasoning;

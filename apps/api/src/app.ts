@@ -8,6 +8,7 @@ import { adminAuth } from "./admin/middleware.ts";
 import { adminRouter } from "./admin/index.ts";
 import type { Db } from "./db.ts";
 import { proxyAuth } from "./proxy/auth.ts";
+import { recordProxyError } from "./proxy/capture.ts";
 import { anthropicRouter } from "./proxy/anthropic.ts";
 import { openaiRouter } from "./proxy/openai.ts";
 
@@ -87,19 +88,28 @@ export function createApp(deps: AppDeps) {
   app.notFound((c) => c.json(errorShape("not_found", `no route ${c.req.method} ${c.req.path}`), 404));
 
   app.onError((err, c) => {
+    // Capture an error row for unhandled proxy errors (row written with null
+    // account/model ids; forward.ts records the proxy-level terminal paths).
+    const capture = (status: number, code: string | null): void => {
+      if (c.req.path.startsWith("/v1/")) recordProxyError(deps.db, c, { httpStatus: status, errorCode: code });
+    };
     if (err instanceof ApiError) {
+      capture(err.status, err.code);
       return c.json({ error: { code: err.code, message: err.message, ...err.extra } }, err.status);
     }
     if (err instanceof HTTPException && err.status < 500) {
+      capture(err.status, null);
       return c.json(
         errorShape(STATUS_CODES[err.status] ?? "bad_request", err.message),
         err.status as ContentfulStatusCode,
       );
     }
     if (err instanceof ZodError) {
+      capture(400, "invalid_request");
       return c.json(errorShape("invalid_request", "request validation failed"), 400);
     }
     httpLogger.logger.error({ err }, "unhandled error");
+    capture(500, null);
     return c.json(errorShape("internal_error", "internal server error"), 500);
   });
 

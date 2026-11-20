@@ -25,7 +25,8 @@ export function openaiRouter(deps: { db: Db; masterKey: Buffer }) {
       throw new ApiError(400, "invalid_request", "model is required");
     }
 
-    const resolved = await resolveRequest(deps.db, requestedModel, "openai", c.get("key"));
+    const key = c.get("key");
+    const resolved = await resolveRequest(deps.db, requestedModel, "openai", key);
     const isStream = clientBody.stream === true;
     const clientSetStreamOptions = clientBody.stream_options != null;
 
@@ -34,6 +35,14 @@ export function openaiRouter(deps: { db: Db; masterKey: Buffer }) {
       upstreamPath: "chat/completions",
       assembler: new OpenAIAssembler(),
       suppressUsageChunks: isStream && !clientSetStreamOptions,
+      capture: {
+        key,
+        model: resolved.model,
+        wireFormat: "openai",
+        stream: isStream,
+        startedAt: Date.now(),
+        clientName: c.req.header("x-client-name") ?? null,
+      },
       buildUpstreamBody: (mapping) => {
         const body: Record<string, unknown> = {
           ...clientBody,
