@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppDeps } from "../app.ts";
 import { accountsRouter } from "./accounts.ts";
 import { credentialsRouter } from "./credentials.ts";
+import { modelsRouter } from "./models.ts";
 import { providersRouter } from "./providers.ts";
 import { testConnectionRouter } from "./test-connection.ts";
 
@@ -11,6 +12,7 @@ export function adminRouter(deps: AppDeps) {
   r.route("/", providersRouter(deps.db));
   r.route("/", accountsRouter(deps.db));
   r.route("/", credentialsRouter(deps.db, deps.masterKey));
+  r.route("/", modelsRouter(deps.db));
   r.route("/", testConnectionRouter(deps.db, deps.masterKey));
   return r;
 }
