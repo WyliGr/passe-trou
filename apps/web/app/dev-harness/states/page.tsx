@@ -5,9 +5,12 @@
 // (leading-underscore folders are private to the App Router).
 
 import { useState } from "react";
+import { ConfirmDrawer } from "@/components/ConfirmDrawer";
+import { CreateButton } from "@/components/CreateButton";
 import { Drawer } from "@/components/Drawer";
 import { Empty } from "@/components/Empty";
 import { ErrorBlock } from "@/components/ErrorBlock";
+import { Field, SecretInput, SelectInput, TextInput } from "@/components/fields";
 import { KpiStrip } from "@/components/KpiStrip";
 import { LineChart, type LinePoint } from "@/components/LineChart";
 import { PageTitle } from "@/components/PageTitle";
@@ -51,6 +54,10 @@ export default function DevStatesPage() {
   const [range, setRange] = useState<string>("24h");
   const [kpi, setKpi] = useState("requests");
   const [drawer, setDrawer] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [field, setField] = useState("fast-flash");
+  const [select, setSelect] = useState("openai-compatible");
+  const [secret, setSecret] = useState("");
 
   return (
     <div className="ml-14 p-[var(--pad)] flex flex-col max-md:ml-0" style={{ gap: "var(--gap)" }}>
@@ -128,11 +135,111 @@ export default function DevStatesPage() {
         <Skeleton className="h-[200px] w-full" />
       </Block>
 
+      <Block title="Create control — outlined, accent line under the label (W15)">
+        <div>
+          <CreateButton label="New provider" onClick={() => undefined} />
+        </div>
+      </Block>
+
+      <Block title="Form fields — label above, API error verbatim under the field (W15)">
+        <div className="max-w-sm flex flex-col gap-4">
+          <Field label="Name" hint={'Callable as /v1/chat/completions model:"<name>"'}>
+            <TextInput value={field} onChange={setField} />
+          </Field>
+          <Field
+            label="Display name"
+            error="displayName already exists"
+          >
+            <TextInput value="CommandCode" onChange={() => undefined} />
+          </Field>
+          <Field label="Type">
+            <SelectInput
+              value={select}
+              onChange={setSelect}
+              options={[
+                { id: "openai-compatible", label: "OpenAI-compatible" },
+                { id: "anthropic-compatible", label: "Anthropic-compatible" },
+              ]}
+            />
+          </Field>
+          <Field label="Upstream API key" hint="Stored encrypted; only the key prefix is kept for display.">
+            <SecretInput value={secret} onChange={setSecret} placeholder="sk-…" />
+          </Field>
+        </div>
+      </Block>
+
+      <Block title="Providers — inline connection-test result, signs not colours (W15)">
+        <div className="flex gap-6 font-mono text-body">
+          <span className="text-positive">+ 214 ms</span>
+          <span className="text-negative">– HTTP 401</span>
+          <span className="text-muted">testing…</span>
+          <span className="font-sans text-warning">no credential</span>
+        </div>
+      </Block>
+
+      <Block title="Models — expanded mappings fixture (W15)">
+        <div className="pl-6">
+          <div className="flex h-9 items-center gap-3">
+            <span className="min-w-0 flex-1 text-body">
+              <span className="text-text">compte-1</span>
+              <span className="text-muted"> · CommandCode</span>
+            </span>
+            <span className="font-mono text-body text-muted">deepseek/deepseek-v4.1-flash</span>
+            <span className="w-14 text-right text-negative">Delete</span>
+          </div>
+          <div className="flex h-9 items-center gap-3 border-t border-rule">
+            <span className="min-w-0 flex-1 text-body">
+              <span className="text-text">mistral-1</span>
+              <span className="text-muted"> · Mistral</span>
+            </span>
+            <Pill variant="warning">benched</Pill>
+            <span className="font-mono text-body text-muted">mistral-small-latest</span>
+            <span className="w-14" />
+          </div>
+          <div className="mt-1 border-t border-rule pt-2">
+            <button
+              type="button"
+              className="h-[28px] rounded-control border border-control px-3 text-small text-text hover:border-muted"
+            >
+              Map account…
+            </button>
+          </div>
+        </div>
+      </Block>
+
+      <Block title="Confirm drawer — typed confirm + API 409 verbatim (W15)">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => setConfirm(true)}
+            className="h-[var(--control-height)] rounded-control border border-negative px-4 text-sm text-negative hover:bg-pill-negative-bg"
+          >
+            Delete account
+          </button>
+          <span className="text-body text-muted">
+            Esc/backdrop cancels; the confirm needs the typed account name.
+          </span>
+        </div>
+      </Block>
+
       <Drawer open={drawer} onClose={() => setDrawer(false)} title="Drawer">
         <p className="text-body text-muted">
           Detail content for the selected object goes here — Esc or the X closes.
         </p>
       </Drawer>
+
+      <ConfirmDrawer
+        open={confirm}
+        onClose={() => setConfirm(false)}
+        title="Delete compte-1"
+        consequence="The account leaves every serving pool; the API answers 409 while model mappings still reference it."
+        confirmLabel="Delete account"
+        typedName="compte-1"
+        error={new ApiError("account_has_mappings", "account is referenced by 2 model mappings", 409)}
+        onConfirm={async () => {
+          throw new ApiError("account_has_mappings", "account is referenced by 2 model mappings", 409);
+        }}
+      />
     </div>
   );
 }
