@@ -101,3 +101,6 @@ export const IconLogout = (p: IconProps) =>
 
 export const IconClose = (p: IconProps) =>
   base(p, <path d="M18 6 6 18M6 6l12 12" />);
+
+export const IconChevron = (p: IconProps) =>
+  base(p, <path d="m9 18 6-6-6-6" />);

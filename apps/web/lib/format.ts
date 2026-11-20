@@ -19,6 +19,9 @@ export const fmtCost = (v: number): string => `$${cost.format(v)}`;
 /** Axis ticks only: compact magnitude (1.2k). */
 export const fmtCompact = (v: number): string => compact.format(v);
 
+/** ISO date for created columns (§7.4: ISO form where rows are compared). */
+export const fmtDay = (iso: string): string => iso.slice(0, 10);
+
 /** Chart x labels: clock when the span is hours, day + month beyond that. */
 export function fmtAxisTs(ts: number, spanMs: number): string {
   const d = new Date(ts);
