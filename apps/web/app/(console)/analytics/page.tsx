@@ -4,17 +4,23 @@
 // Data: GET /admin/analytics/summary (grouped aggregates) + /admin/analytics/timeseries (trend).
 
 import { useCallback, useEffect, useState } from "react";
+import { BarList } from "@/components/BarList";
+import { Empty } from "@/components/Empty";
 import { ErrorBlock } from "@/components/ErrorBlock";
 import { KpiStrip, type KpiItem } from "@/components/KpiStrip";
 import { PageTitle } from "@/components/PageTitle";
 import { RangeTabs, type RangeOption } from "@/components/RangeTabs";
 import { Skeleton } from "@/components/Skeleton";
-import { UnderlineSelect } from "@/components/UnderlineSelect";
+import { UnderlineSelect, type SelectOption } from "@/components/UnderlineSelect";
 import {
   fetchSummary,
   fmtMs,
   fmtRate,
   GROUPS,
+  GROUP_LABELS,
+  METRICS,
+  PANEL_METRICS,
+  rankRows,
   rowName,
   type PanelMetric,
   type GroupBy,
@@ -52,6 +58,58 @@ const TABS = [
 ] as const satisfies readonly RangeOption[];
 
 const GROUP_OPTIONS = GROUPS.map((g) => ({ id: g, label: g }));
+const METRIC_OPTIONS: readonly SelectOption[] = PANEL_METRICS.map((m) => ({
+  id: m,
+  label: METRICS[m].label,
+}));
+
+/** Panel chrome: 73px header (14/600 title + 13px muted description + metric dropdown)
+ *  over a full-bleed 1px rule. */
+function PanelHeader({
+  title,
+  description,
+  metric,
+  onMetric,
+}: {
+  title: string;
+  description: string;
+  metric?: PanelMetric;
+  onMetric?: (m: PanelMetric) => void;
+}) {
+  return (
+    <>
+      <div className="flex h-[73px] items-center justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-semibold">{title}</h3>
+          <p className="mt-1 text-body text-muted">{description}</p>
+        </div>
+        {metric !== undefined && onMetric && (
+          <UnderlineSelect
+            options={METRIC_OPTIONS}
+            value={metric}
+            onChange={onMetric}
+            ariaLabel={`${title} metric`}
+          />
+        )}
+      </div>
+      <div aria-hidden="true" className="-mx-6 border-t border-rule" />
+    </>
+  );
+}
+
+/** Bar-list skeleton at the real 64px row pitch. */
+function BarListSkeleton({ rows = 8 }: { rows?: number }) {
+  return (
+    <div aria-label="Loading">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex h-16 flex-col justify-center gap-2.5">
+          <Skeleton className="h-3 w-1/3" />
+          <Skeleton className="h-2.5 w-3/4" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const KPI_IDS = ["requests", "tokens", "spend", "avgLatency", "p95Latency", "errorRate"] as const;
 
@@ -136,6 +194,8 @@ export default function AnalyticsPage() {
   }, [loadSummary]);
 
   const okSummary = summary.status === "ok" ? summary.data : null;
+  const activeLeft = leftMetric ?? tab;
+  const ranked = okSummary ? rankRows(okSummary.rows, activeLeft, groupBy) : [];
 
   return (
     <div className="flex flex-col" style={{ gap: "var(--gap)" }}>
@@ -177,6 +237,32 @@ export default function AnalyticsPage() {
           <KpiStrip items={kpiItems(okSummary)} cols={6} />
         )}
       </section>
+
+      <div className="grid grid-cols-2 max-md:grid-cols-1" style={{ gap: "var(--gap)" }}>
+        <section aria-label="By group" className="rounded-card bg-surface p-6">
+          <PanelHeader
+            title="By group"
+            description={`${METRICS[activeLeft].label} by ${groupBy}, sorted`}
+            metric={activeLeft}
+            onMetric={setLeftMetric}
+          />
+          <div className="pt-4">
+            {summary.status === "error" ? (
+              <ErrorBlock error={summary.error} onRetry={loadSummary} />
+            ) : summary.status === "loading" ? (
+              <BarListSkeleton />
+            ) : ranked.length === 0 ? (
+              <Empty sentence="No data in this window." />
+            ) : (
+              <BarList
+                rows={ranked}
+                formatValue={METRICS[activeLeft].format}
+                ariaLabel={`${METRICS[activeLeft].label} by ${groupBy}`}
+              />
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
