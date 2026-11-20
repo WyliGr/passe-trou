@@ -13,13 +13,16 @@ export function Table<Row>({
   columns,
   rows,
   rowKey,
+  onRowClick,
   rowClassName,
 }: {
   columns: Column<Row>[];
   rows: Row[];
   rowKey: (row: Row, i: number) => React.Key;
-  /** Extra classes merged onto each body row (W15: "group" for hover-revealed row actions). */
-  rowClassName?: string;
+  /** Row becomes clickable (cursor + hover) when set. */
+  onRowClick?: (row: Row) => void;
+  /** String (W15: "group" for hover-revealed actions) or per-row function (W13: enter animation). */
+  rowClassName?: string | ((row: Row) => string);
 }) {
   return (
     <table className="w-full border-collapse text-body">
@@ -42,7 +45,10 @@ export function Table<Row>({
         {rows.map((row, i) => (
           <tr
             key={rowKey(row, i)}
-            className={`h-[var(--row-height)] border-t border-rule ${rowClassName ?? ""}`}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+            className={`h-[var(--row-height)] border-t border-rule ${
+              onRowClick ? "cursor-pointer hover:bg-raised/40" : ""
+            } ${typeof rowClassName === "string" ? rowClassName : (rowClassName?.(row) ?? "")}`}
           >
             {columns.map((col) => (
               <td
