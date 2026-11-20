@@ -4,17 +4,23 @@
 // Data: GET /admin/analytics/summary (grouped aggregates) + /admin/analytics/timeseries (trend).
 
 import { useCallback, useEffect, useState } from "react";
+import { ErrorBlock } from "@/components/ErrorBlock";
+import { KpiStrip, type KpiItem } from "@/components/KpiStrip";
 import { PageTitle } from "@/components/PageTitle";
 import { RangeTabs, type RangeOption } from "@/components/RangeTabs";
+import { Skeleton } from "@/components/Skeleton";
 import { UnderlineSelect } from "@/components/UnderlineSelect";
 import {
   fetchSummary,
+  fmtMs,
+  fmtRate,
   GROUPS,
   rowName,
   type PanelMetric,
   type GroupBy,
   type Summary,
 } from "@/lib/analytics";
+import { fmtCost, fmtInt } from "@/lib/format";
 
 type LoadState<T> =
   | { status: "loading" }
@@ -46,6 +52,49 @@ const TABS = [
 ] as const satisfies readonly RangeOption[];
 
 const GROUP_OPTIONS = GROUPS.map((g) => ({ id: g, label: g }));
+
+const KPI_IDS = ["requests", "tokens", "spend", "avgLatency", "p95Latency", "errorRate"] as const;
+
+/** The six equal KPI cells, filled from summary.total for the window. */
+function kpiItems(s: Summary | null): KpiItem[] {
+  const t = s?.total;
+  if (!t) {
+    return KPI_IDS.map((id) => ({
+      id,
+      label: kpiLabel(id),
+      value: null,
+    }));
+  }
+  return [
+    { id: "requests", label: "Requests", value: fmtInt(t.requests) },
+    { id: "tokens", label: "Tokens", value: fmtInt(t.promptTokens + t.completionTokens) },
+    { id: "spend", label: "Spend", value: fmtCost(t.costUsd) },
+    {
+      id: "avgLatency",
+      label: "Avg latency",
+      value: t.avgLatencyMs === null ? null : fmtMs(t.avgLatencyMs),
+      unit: "ms",
+    },
+    {
+      id: "p95Latency",
+      label: "P95 latency",
+      value: t.p95LatencyMs === null ? null : fmtMs(t.p95LatencyMs),
+      unit: "ms",
+    },
+    { id: "errorRate", label: "Error rate", value: fmtRate(t.errorRate) },
+  ];
+}
+
+function kpiLabel(id: (typeof KPI_IDS)[number]): string {
+  return {
+    requests: "Requests",
+    tokens: "Tokens",
+    spend: "Spend",
+    avgLatency: "Avg latency",
+    p95Latency: "P95 latency",
+    errorRate: "Error rate",
+  }[id];
+}
 
 /** The one fact under the title: the top cost driver's share of the window's spend. */
 function findingLine(s: Summary, range: Range): string {
@@ -112,9 +161,22 @@ export default function AnalyticsPage() {
         </span>
       </div>
 
-      <pre className="text-small text-muted">
-        {okSummary ? `rows: ${okSummary.rows.length} (KPI + panels next)` : "\u00a0"}
-      </pre>
+      <section aria-label="Window totals" className="rounded-card bg-surface p-1.5">
+        {summary.status === "error" ? (
+          <ErrorBlock error={summary.error} onRetry={loadSummary} />
+        ) : summary.status === "loading" ? (
+          <div className="grid grid-cols-6 max-md:grid-cols-2 max-md:gap-4">
+            {KPI_IDS.map((id) => (
+              <div key={id} className="px-4 py-3 max-md:px-0">
+                <span className="block text-sm font-medium text-muted">{kpiLabel(id)}</span>
+                <Skeleton className="mt-2 h-5 w-20" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <KpiStrip items={kpiItems(okSummary)} cols={6} />
+        )}
+      </section>
     </div>
   );
 }

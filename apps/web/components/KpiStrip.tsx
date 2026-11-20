@@ -14,14 +14,19 @@ export function KpiStrip({
   items,
   selectedId,
   onSelect,
+  cols = 5,
 }: {
   items: KpiItem[];
   selectedId?: string;
   onSelect?: (id: string) => void;
+  /** Equal columns across the width (5 on Overview, 6 on Analytics). */
+  cols?: 5 | 6;
 }) {
   return (
     <div
-      className="grid grid-cols-5 divide-x divide-rule max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-5 max-md:divide-x-0"
+      className={`grid divide-x divide-rule max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-5 max-md:divide-x-0 ${
+        cols === 6 ? "grid-cols-6" : "grid-cols-5"
+      }`}
       role={onSelect ? "tablist" : undefined}
     >
       {items.map((item) => {
