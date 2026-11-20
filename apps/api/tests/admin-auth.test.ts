@@ -52,8 +52,18 @@ describe("admin auth", () => {
   });
 
   it("/v1/* space is not behind admin auth", async () => {
-    const res = await testApp().request("http://localhost/v1/models");
-    expect(res.status).not.toBe(401);
+    // Proxy space has its own key auth (Task 8): an admin-token 401 must never
+    // appear there. No key → proxy-domain 401 (invalid_api_key), and the admin
+    // token itself does not open /v1/*.
+    const anon = await testApp().request("http://localhost/v1/models");
+    expect(anon.status).toBe(401);
+    expect(((await anon.json()) as { error: { code: string } }).error.code).toBe("invalid_api_key");
+
+    const withAdmin = await testApp().request("http://localhost/v1/models", {
+      headers: adminHeaders(),
+    });
+    expect(withAdmin.status).toBe(401);
+    expect(((await withAdmin.json()) as { error: { code: string } }).error.code).toBe("invalid_api_key");
   });
 });
 

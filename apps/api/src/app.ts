@@ -7,6 +7,7 @@ import { ZodError } from "zod";
 import { adminAuth } from "./admin/middleware.ts";
 import { adminRouter } from "./admin/index.ts";
 import type { Db } from "./db.ts";
+import { proxyAuth } from "./proxy/auth.ts";
 
 export interface AppDeps {
   db: Db;
@@ -24,12 +25,13 @@ export function errorShape(code: string, message: string): ErrorShape {
   return { error: { code, message } };
 }
 
-/** Domain error carrying an HTTP status and a machine-readable code. */
+/** Domain error carrying an HTTP status, a machine-readable code, and optional extra error-body fields. */
 export class ApiError extends Error {
   constructor(
-    public readonly status: 400 | 401 | 403 | 404 | 409 | 500,
+    public readonly status: 400 | 401 | 403 | 404 | 409 | 500 | 503,
     public readonly code: string,
     message?: string,
+    public readonly extra?: Record<string, unknown>,
   ) {
     super(message ?? code);
     this.name = "ApiError";
@@ -75,11 +77,14 @@ export function createApp(deps: AppDeps) {
   app.use("/admin/*", adminAuth(deps.adminToken));
   app.route("/admin", adminRouter(deps));
 
+  // Proxy edge: key-based auth on everything under /v1.
+  app.use("/v1/*", proxyAuth(deps.db));
+
   app.notFound((c) => c.json(errorShape("not_found", `no route ${c.req.method} ${c.req.path}`), 404));
 
   app.onError((err, c) => {
     if (err instanceof ApiError) {
-      return c.json(errorShape(err.code, err.message), err.status);
+      return c.json({ error: { code: err.code, message: err.message, ...err.extra } }, err.status);
     }
     if (err instanceof HTTPException && err.status < 500) {
       return c.json(
