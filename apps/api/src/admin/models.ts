@@ -121,6 +121,12 @@ export function modelsRouter(db: Db) {
     if (model.mappings.length > 0) {
       throw new ApiError(409, "model_has_mappings", "model still has mappings");
     }
+    // ApiKeyModel cascades on model delete; an emptied allowlist becomes the
+    // wildcard (all models), which would silently widen that key's access.
+    const allowlisted = await db.apiKeyModel.count({ where: { modelId: model.id } });
+    if (allowlisted > 0) {
+      throw new ApiError(409, "model_in_allowlist", "model is in at least one key allowlist");
+    }
     await db.model.delete({ where: { id: model.id } });
     return c.body(null, 204);
   });

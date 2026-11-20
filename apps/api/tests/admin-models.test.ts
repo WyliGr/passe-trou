@@ -171,6 +171,23 @@ describe("GET/PATCH/DELETE /admin/models/:id", () => {
     const res = await req(`/admin/models/${model.id}`, { method: "DELETE" });
     expect(res.status).toBe(204);
   });
+
+  it("DELETE 409 model_in_allowlist while a key allowlists the model", async () => {
+    const model = await (await createModel()).json();
+    const member = await (
+      await jsonReq("POST", "/admin/members", { displayName: "Chloé" })
+    ).json();
+    const key = await (
+      await jsonReq("POST", `/admin/members/${member.id}/keys`, { label: "heermes" })
+    ).json();
+    await jsonReq("PUT", `/admin/keys/${key.id}/models`, { modelIds: [model.id] });
+
+    // Removing the key's only allowlisted model would flip its empty allowlist
+    // to the wildcard (all models) — forbid instead of silently widening.
+    const res = await req(`/admin/models/${model.id}`, { method: "DELETE" });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error.code).toBe("model_in_allowlist");
+  });
 });
 
 describe("POST /admin/models/:id/mappings", () => {
@@ -243,6 +260,17 @@ describe("POST /admin/models/:id/mappings", () => {
 });
 
 describe("DELETE /admin/mappings/:mappingId", () => {
+  it("409 deleting an account that still has mappings", async () => {
+    const provider = await createProvider();
+    const account = await createAccount(provider.id);
+    const model = await (await createModel()).json();
+    await jsonReq("POST", `/admin/models/${model.id}/mappings`, { accountId: account.id });
+
+    const res = await req(`/admin/accounts/${account.id}`, { method: "DELETE" });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error.code).toBe("account_has_mappings");
+  });
+
   it("removes the mapping (204); gone from model afterwards; 404 unknown", async () => {
     const provider = await createProvider();
     const account = await createAccount(provider.id);

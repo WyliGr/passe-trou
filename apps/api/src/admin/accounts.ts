@@ -113,6 +113,10 @@ export function accountsRouter(db: Db) {
   r.delete("/accounts/:id", async (c) => {
     const id = c.req.param("id");
     await mustGetAccount(db, id);
+    const mappings = await db.modelAccount.count({ where: { accountId: id } });
+    if (mappings > 0) {
+      throw new ApiError(409, "account_has_mappings", "account still has model mappings");
+    }
     await db.account.delete({ where: { id } });
     return c.body(null, 204);
   });
