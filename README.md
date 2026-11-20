@@ -59,19 +59,30 @@ curl -N "http://127.0.0.1:8477/admin/analytics/feed" -H "Authorization: Bearer $
 
 ## Self-host (docker)
 
-`docker-compose.yml` runs the API plus a Postgres 16 (`pgdata` volume);
-migrations are applied automatically at boot.
+`docker-compose.yml` runs the whole product: web console (Next.js standalone),
+API, and a Postgres 16 (`pgdata` volume); migrations are applied automatically
+at boot. The console is on `:3100` and the API is reachable only through it at
+`/api` (same-origin proxy — the API publishes no port).
 
 ```bash
-cp /dev/null .env   # then set the required vars
-# POSTGRES_PASSWORD=$(openssl rand -hex 24)
-# ADMIN_TOKEN=$(openssl rand -hex 32)      # Bearer for /admin/*
-# ENCRYPTION_MASTER_KEY=$(openssl rand -hex 32)  # AES-256-GCM master key — back it up: losing it bricks stored secrets
+cp /dev/null .env   # then set the required vars (see table)
 docker compose up -d --build
-curl localhost:8477/healthz
+curl localhost:3100/login
 ```
 
-`PASSETROU_PORT` overrides the published port (default `8477`).
+| Var | What |
+|---|---|
+| `POSTGRES_PASSWORD` | DB password — `openssl rand -hex 24` |
+| `ADMIN_TOKEN` | Bearer for every `/admin/*` route (32+ chars) — `openssl rand -hex 32` |
+| `ENCRYPTION_MASTER_KEY` | AES-256-GCM master key for stored upstream credentials, 64 hex — `openssl rand -hex 32`. Back it up: losing it bricks stored secrets |
+| `PASSETROU_WEB_PORT` | Optional published console port (default `3100`) |
+
+First login: open `http://localhost:3100/login` and paste your `ADMIN_TOKEN`.
+
+Dev note: to hit the raw API instead of the proxy, uncomment the `ports:` block
+on the `api` service (`${PASSETROU_PORT:-8477}:8477`). The web image bakes the
+proxy target at build time (`API_INTERNAL_URL` build arg, default
+`http://api:8477`) — change it via compose `build.args`, not runtime env.
 
 ## License
 
