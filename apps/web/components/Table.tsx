@@ -13,10 +13,13 @@ export function Table<Row>({
   columns,
   rows,
   rowKey,
+  rowClassName,
 }: {
   columns: Column<Row>[];
   rows: Row[];
   rowKey: (row: Row, i: number) => React.Key;
+  /** Extra classes merged onto each body row (W15: "group" for hover-revealed row actions). */
+  rowClassName?: string;
 }) {
   return (
     <table className="w-full border-collapse text-body">
@@ -37,7 +40,10 @@ export function Table<Row>({
       </thead>
       <tbody>
         {rows.map((row, i) => (
-          <tr key={rowKey(row, i)} className="h-[var(--row-height)] border-t border-rule">
+          <tr
+            key={rowKey(row, i)}
+            className={`h-[var(--row-height)] border-t border-rule ${rowClassName ?? ""}`}
+          >
             {columns.map((col) => (
               <td
                 key={col.key}

@@ -4,7 +4,7 @@ export function Empty({
   sentence,
   action,
 }: {
-  sentence: string;
+  sentence: React.ReactNode; // widened from string (W15) so trade nouns can be set in mono
   action?: React.ReactNode;
 }) {
   return (
