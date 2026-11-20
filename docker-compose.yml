@@ -30,8 +30,32 @@ services:
       NODE_ENV: production
       ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env}
       ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:?set ENCRYPTION_MASTER_KEY in .env}
+    # uncomment to expose the raw API (dev only — production traffic goes through the web proxy)
+    # ports:
+    #   - "${PASSETROU_PORT:-8477}:8477"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8477/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        # baked into .next/routes-manifest.json at build time (rewrites are not runtime-configurable)
+        API_INTERNAL_URL: http://api:8477
+    image: passetrou-web:latest
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      # inert at runtime (see build arg above) — kept to document the wiring
+      API_INTERNAL_URL: http://api:8477
     ports:
-      - "${PASSETROU_PORT:-8477}:8477"
+      - "${PASSETROU_WEB_PORT:-3100}:3000"
 
 volumes:
   pgdata:
