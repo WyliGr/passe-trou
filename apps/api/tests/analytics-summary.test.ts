@@ -61,6 +61,36 @@ const ZERO_METRICS: Metrics = {
   p95TtftMs: null,
 };
 
+describe("GET /admin/analytics/summary — query params", () => {
+  it("rejects an unknown groupBy with 400", async () => {
+    const res = await summary("?groupBy=bogus");
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toMatchObject({ error: { code: expect.any(String), message: expect.any(String) } });
+  });
+
+  it("rejects unparseable from/to with 400", async () => {
+    expect((await summary("?from=nope")).status).toBe(400);
+    expect((await summary("?to=2026-13-99T99:99")).status).toBe(400);
+  });
+
+  it("rejects from >= to with 400", async () => {
+    const a = "2026-11-01T00:00:00.000Z";
+    const b = "2026-11-02T00:00:00.000Z";
+    expect((await summary(`?from=${b}&to=${a}`)).status).toBe(400);
+    expect((await summary(`?from=${a}&to=${a}`)).status).toBe(400);
+  });
+
+  it("echoes groupBy and the resolved window", async () => {
+    const body = await summaryOk(
+      "?groupBy=member&from=2026-11-01T00:00:00Z&to=2026-11-03T12:00:00%2B02:00",
+    );
+    expect(body.groupBy).toBe("member");
+    expect(body.from).toBe("2026-11-01T00:00:00.000Z");
+    expect(body.to).toBe("2026-11-03T10:00:00.000Z");
+  });
+});
+
 describe("GET /admin/analytics/summary — auth & empty shape", () => {
   it("rejects without an admin token (shared 401 error shape)", async () => {
     const res = await summary("", {});
