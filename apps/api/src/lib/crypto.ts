@@ -1,4 +1,19 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+
+/** SHA-256 hex of a passe•trou API key — the only persisted form. */
+export function hashKey(token: string): string {
+  return createHash("sha256").update(token, "utf8").digest("hex");
+}
+
+/**
+ * Mint a passe•trou API key: `pt_` + 32 random hex chars.
+ * Plaintext is returned here (and to the admin) exactly once; only
+ * keyPrefix (first 10 chars, for display) and keyHash are stored.
+ */
+export function generateApiKey(): { token: string; keyPrefix: string; keyHash: string } {
+  const token = `pt_${randomBytes(16).toString("hex")}`;
+  return { token, keyPrefix: token.slice(0, 10), keyHash: hashKey(token) };
+}
 
 /** AES-256-GCM vault for upstream credentials. Master key from env, never persisted. */
 
