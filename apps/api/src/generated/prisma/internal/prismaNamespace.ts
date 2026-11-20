@@ -1311,6 +1311,7 @@ export const AccountCredentialScalarFieldEnum = {
   accountId: 'accountId',
   enc: 'enc',
   last4: 'last4',
+  keyPrefix: 'keyPrefix',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

@@ -29,6 +29,7 @@ export type AccountCredentialMinAggregateOutputType = {
   accountId: string | null
   enc: string | null
   last4: string | null
+  keyPrefix: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -38,6 +39,7 @@ export type AccountCredentialMaxAggregateOutputType = {
   accountId: string | null
   enc: string | null
   last4: string | null
+  keyPrefix: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -47,6 +49,7 @@ export type AccountCredentialCountAggregateOutputType = {
   accountId: number
   enc: number
   last4: number
+  keyPrefix: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -58,6 +61,7 @@ export type AccountCredentialMinAggregateInputType = {
   accountId?: true
   enc?: true
   last4?: true
+  keyPrefix?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -67,6 +71,7 @@ export type AccountCredentialMaxAggregateInputType = {
   accountId?: true
   enc?: true
   last4?: true
+  keyPrefix?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -76,6 +81,7 @@ export type AccountCredentialCountAggregateInputType = {
   accountId?: true
   enc?: true
   last4?: true
+  keyPrefix?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -158,6 +164,7 @@ export type AccountCredentialGroupByOutputType = {
   accountId: string
   enc: string
   last4: string
+  keyPrefix: string
   createdAt: Date
   updatedAt: Date
   _count: AccountCredentialCountAggregateOutputType | null
@@ -188,6 +195,7 @@ export type AccountCredentialWhereInput = {
   accountId?: Prisma.StringFilter<"AccountCredential"> | string
   enc?: Prisma.StringFilter<"AccountCredential"> | string
   last4?: Prisma.StringFilter<"AccountCredential"> | string
+  keyPrefix?: Prisma.StringFilter<"AccountCredential"> | string
   createdAt?: Prisma.DateTimeFilter<"AccountCredential"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AccountCredential"> | Date | string
   account?: Prisma.XOR<Prisma.AccountScalarRelationFilter, Prisma.AccountWhereInput>
@@ -198,6 +206,7 @@ export type AccountCredentialOrderByWithRelationInput = {
   accountId?: Prisma.SortOrder
   enc?: Prisma.SortOrder
   last4?: Prisma.SortOrder
+  keyPrefix?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   account?: Prisma.AccountOrderByWithRelationInput
@@ -211,6 +220,7 @@ export type AccountCredentialWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.AccountCredentialWhereInput | Prisma.AccountCredentialWhereInput[]
   enc?: Prisma.StringFilter<"AccountCredential"> | string
   last4?: Prisma.StringFilter<"AccountCredential"> | string
+  keyPrefix?: Prisma.StringFilter<"AccountCredential"> | string
   createdAt?: Prisma.DateTimeFilter<"AccountCredential"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AccountCredential"> | Date | string
   account?: Prisma.XOR<Prisma.AccountScalarRelationFilter, Prisma.AccountWhereInput>
@@ -221,6 +231,7 @@ export type AccountCredentialOrderByWithAggregationInput = {
   accountId?: Prisma.SortOrder
   enc?: Prisma.SortOrder
   last4?: Prisma.SortOrder
+  keyPrefix?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AccountCredentialCountOrderByAggregateInput
@@ -236,6 +247,7 @@ export type AccountCredentialScalarWhereWithAggregatesInput = {
   accountId?: Prisma.StringWithAggregatesFilter<"AccountCredential"> | string
   enc?: Prisma.StringWithAggregatesFilter<"AccountCredential"> | string
   last4?: Prisma.StringWithAggregatesFilter<"AccountCredential"> | string
+  keyPrefix?: Prisma.StringWithAggregatesFilter<"AccountCredential"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AccountCredential"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AccountCredential"> | Date | string
 }
@@ -244,6 +256,7 @@ export type AccountCredentialCreateInput = {
   id?: string
   enc: string
   last4: string
+  keyPrefix?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   account: Prisma.AccountCreateNestedOneWithoutCredentialInput
@@ -254,6 +267,7 @@ export type AccountCredentialUncheckedCreateInput = {
   accountId: string
   enc: string
   last4: string
+  keyPrefix?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -262,6 +276,7 @@ export type AccountCredentialUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   enc?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
+  keyPrefix?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   account?: Prisma.AccountUpdateOneRequiredWithoutCredentialNestedInput
@@ -272,6 +287,7 @@ export type AccountCredentialUncheckedUpdateInput = {
   accountId?: Prisma.StringFieldUpdateOperationsInput | string
   enc?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
+  keyPrefix?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -281,6 +297,7 @@ export type AccountCredentialCreateManyInput = {
   accountId: string
   enc: string
   last4: string
+  keyPrefix?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -289,6 +306,7 @@ export type AccountCredentialUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   enc?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
+  keyPrefix?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -298,6 +316,7 @@ export type AccountCredentialUncheckedUpdateManyInput = {
   accountId?: Prisma.StringFieldUpdateOperationsInput | string
   enc?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
+  keyPrefix?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -312,6 +331,7 @@ export type AccountCredentialCountOrderByAggregateInput = {
   accountId?: Prisma.SortOrder
   enc?: Prisma.SortOrder
   last4?: Prisma.SortOrder
+  keyPrefix?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -321,6 +341,7 @@ export type AccountCredentialMaxOrderByAggregateInput = {
   accountId?: Prisma.SortOrder
   enc?: Prisma.SortOrder
   last4?: Prisma.SortOrder
+  keyPrefix?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -330,6 +351,7 @@ export type AccountCredentialMinOrderByAggregateInput = {
   accountId?: Prisma.SortOrder
   enc?: Prisma.SortOrder
   last4?: Prisma.SortOrder
+  keyPrefix?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -370,6 +392,7 @@ export type AccountCredentialCreateWithoutAccountInput = {
   id?: string
   enc: string
   last4: string
+  keyPrefix?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -378,6 +401,7 @@ export type AccountCredentialUncheckedCreateWithoutAccountInput = {
   id?: string
   enc: string
   last4: string
+  keyPrefix?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -402,6 +426,7 @@ export type AccountCredentialUpdateWithoutAccountInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   enc?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
+  keyPrefix?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -410,6 +435,7 @@ export type AccountCredentialUncheckedUpdateWithoutAccountInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   enc?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
+  keyPrefix?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -421,6 +447,7 @@ export type AccountCredentialSelect<ExtArgs extends runtime.Types.Extensions.Int
   accountId?: boolean
   enc?: boolean
   last4?: boolean
+  keyPrefix?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
@@ -431,6 +458,7 @@ export type AccountCredentialSelectCreateManyAndReturn<ExtArgs extends runtime.T
   accountId?: boolean
   enc?: boolean
   last4?: boolean
+  keyPrefix?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
@@ -441,6 +469,7 @@ export type AccountCredentialSelectUpdateManyAndReturn<ExtArgs extends runtime.T
   accountId?: boolean
   enc?: boolean
   last4?: boolean
+  keyPrefix?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
@@ -451,11 +480,12 @@ export type AccountCredentialSelectScalar = {
   accountId?: boolean
   enc?: boolean
   last4?: boolean
+  keyPrefix?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AccountCredentialOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "accountId" | "enc" | "last4" | "createdAt" | "updatedAt", ExtArgs["result"]["accountCredential"]>
+export type AccountCredentialOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "accountId" | "enc" | "last4" | "keyPrefix" | "createdAt" | "updatedAt", ExtArgs["result"]["accountCredential"]>
 export type AccountCredentialInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
 }
@@ -476,6 +506,7 @@ export type $AccountCredentialPayload<ExtArgs extends runtime.Types.Extensions.I
     accountId: string
     enc: string
     last4: string
+    keyPrefix: string
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["accountCredential"]>
@@ -906,6 +937,7 @@ export interface AccountCredentialFieldRefs {
   readonly accountId: Prisma.FieldRef<"AccountCredential", 'String'>
   readonly enc: Prisma.FieldRef<"AccountCredential", 'String'>
   readonly last4: Prisma.FieldRef<"AccountCredential", 'String'>
+  readonly keyPrefix: Prisma.FieldRef<"AccountCredential", 'String'>
   readonly createdAt: Prisma.FieldRef<"AccountCredential", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AccountCredential", 'DateTime'>
 }
