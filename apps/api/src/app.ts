@@ -10,6 +10,8 @@ import type { Db } from "./db.ts";
 import { proxyAuth } from "./proxy/auth.ts";
 import { recordProxyError } from "./proxy/capture.ts";
 import { anthropicRouter } from "./proxy/anthropic.ts";
+import { embeddingsRouter } from "./proxy/embeddings.ts";
+import { modelsListRouter } from "./proxy/modelsList.ts";
 import { openaiRouter } from "./proxy/openai.ts";
 
 export interface AppDeps {
@@ -84,6 +86,8 @@ export function createApp(deps: AppDeps) {
   app.use("/v1/*", proxyAuth(deps.db));
   app.route("/v1", openaiRouter(deps));
   app.route("/v1", anthropicRouter(deps));
+  app.route("/v1", modelsListRouter(deps));
+  app.route("/v1", embeddingsRouter(deps));
 
   app.notFound((c) => c.json(errorShape("not_found", `no route ${c.req.method} ${c.req.path}`), 404));
 

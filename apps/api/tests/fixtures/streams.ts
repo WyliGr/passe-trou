@@ -113,6 +113,14 @@ export const ANTHROPIC_JSON_BODY: string = JSON.stringify({
   },
 });
 
+/** OpenAI embeddings response (non-stream; usage has no completion count). */
+export const EMBEDDINGS_JSON_BODY: string = JSON.stringify({
+  object: "list",
+  data: [{ object: "embedding", index: 0, embedding: [0.0123, -0.0456] }],
+  model: "embed-v1",
+  usage: { prompt_tokens: 1024, total_tokens: 1024 },
+});
+
 export function bytesOf(s: string): Uint8Array {
   return enc.encode(s);
 }

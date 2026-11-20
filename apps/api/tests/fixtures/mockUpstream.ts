@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import {
   ANTHROPIC_JSON_BODY,
   ANTHROPIC_STREAM,
+  EMBEDDINGS_JSON_BODY,
   OPENAI_JSON_BODY,
   OPENAI_STREAM_BIG_USAGE,
   OPENAI_STREAM_NO_USAGE,
@@ -134,6 +135,16 @@ export async function startMockUpstream(): Promise<MockUpstream> {
       });
     }
     return new Response(OPENAI_JSON_BODY, {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  });
+
+  app.post("/embeddings", async (c) => {
+    const entry = await record(c);
+    const earlyRes = await early(entry);
+    if (earlyRes) return earlyRes;
+    return new Response(EMBEDDINGS_JSON_BODY, {
       status: 200,
       headers: { "content-type": "application/json" },
     });
