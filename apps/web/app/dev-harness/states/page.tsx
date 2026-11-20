@@ -17,6 +17,9 @@ import { Skeleton, SkeletonRows } from "@/components/Skeleton";
 import { Table, type Column } from "@/components/Table";
 import { ApiError } from "@/lib/api";
 import { fmtCost, fmtInt } from "@/lib/format";
+import type { Account, AdminModel, MemberWithKeys, Price, Provider } from "@/lib/admin";
+import { KeyTokenBlock, MembersTable, ModelChecklist } from "@/app/(console)/members/ui";
+import { PricingTable } from "@/app/(console)/pricing/ui";
 
 const now = Date.now();
 const SERIES: LinePoint[] = [
@@ -38,6 +41,39 @@ const COLUMNS: Column<Row>[] = [
   { key: "cost", header: "Cost", align: "right", render: (r) => <span className="text-muted">{fmtCost(r.cost)}</span> },
 ];
 
+// --- W16 fixtures: /members and /pricing screens ---
+const MODELS_FIXTURE: AdminModel[] = [
+  { id: "m1", displayName: "fast-flash", enabled: true, createdAt: "", updatedAt: "", mappings: [] },
+  { id: "m2", displayName: "claude-pool", enabled: true, createdAt: "", updatedAt: "", mappings: [] },
+  { id: "m3", displayName: "embed-small", enabled: false, createdAt: "", updatedAt: "", mappings: [] },
+];
+const MEMBERS_FIXTURE: MemberWithKeys[] = [
+  {
+    id: "mb1", displayName: "Will", enabled: true, createdAt: "2026-11-02T09:12:00.000Z", updatedAt: "",
+    keys: [
+      { id: "k1", keyPrefix: "pt_a3f9c2e1", label: "opencode-worker-3", enabled: true, createdAt: "2026-11-02T09:13:00.000Z", allowlist: [{ id: "m1", displayName: "fast-flash" }] },
+      { id: "k2", keyPrefix: "pt_7bd4109f", label: "laptop-cli", enabled: true, createdAt: "2026-11-10T18:44:00.000Z", allowlist: [] },
+    ],
+  },
+  {
+    id: "mb2", displayName: "Nia", enabled: true, createdAt: "2026-11-12T08:02:00.000Z", updatedAt: "",
+    keys: [
+      { id: "k3", keyPrefix: "pt_e55b02c8", label: "smoke-agent", enabled: false, createdAt: "2026-11-12T08:03:00.000Z", allowlist: [{ id: "m2", displayName: "claude-pool" }] },
+    ],
+  },
+  { id: "mb3", displayName: "Raf", enabled: true, createdAt: "2026-11-18T15:31:00.000Z", updatedAt: "", keys: [] },
+];
+const PROVIDERS_FIXTURE: Provider[] = [
+  { id: "p1", displayName: "CommandCode", type: "openai-compatible", baseUrl: "", createdAt: "", updatedAt: "" },
+];
+const ACCOUNTS_FIXTURE: Array<Account & { providerName: string }> = [
+  { id: "a1", providerId: "p1", displayName: "compte-1", status: "active", keyPrefix: "sk-…", createdAt: "", updatedAt: "", providerName: "CommandCode" },
+];
+const PRICES_FIXTURE: Price[] = [
+  { id: "pr1", scope: "provider", providerId: "p1", accountId: null, modelMatcher: "deepseek/*", priceInput: 0.14, priceOutput: 0.28, priceCachedInput: null, updatedAt: "" },
+  { id: "pr2", scope: "account", providerId: null, accountId: "a1", modelMatcher: "deepseek/deepseek-v4.1-flash", priceInput: 0.1, priceOutput: 0.2, priceCachedInput: 0.05, updatedAt: "" },
+];
+
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-card bg-surface p-6 flex flex-col gap-4">
@@ -51,6 +87,8 @@ export default function DevStatesPage() {
   const [range, setRange] = useState<string>("24h");
   const [kpi, setKpi] = useState("requests");
   const [drawer, setDrawer] = useState(false);
+  const [memberExpanded, setMemberExpanded] = useState<Set<string>>(new Set(["mb1"]));
+  const [checklistSel, setChecklistSel] = useState<Set<string>>(new Set(["m1"]));
 
   return (
     <div className="ml-14 p-[var(--pad)] flex flex-col max-md:ml-0" style={{ gap: "var(--gap)" }}>
@@ -126,6 +164,41 @@ export default function DevStatesPage() {
       <Block title="Loading">
         <SkeletonRows rows={3} />
         <Skeleton className="h-[200px] w-full" />
+      </Block>
+
+      <Block title="Members — table with expand, keys and allowlists (fixtures)">
+        <MembersTable
+          members={MEMBERS_FIXTURE}
+          expanded={memberExpanded}
+          onToggle={(id) =>
+            setMemberExpanded((prev) => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              return next;
+            })
+          }
+          onEditAllowlist={() => undefined}
+          onDeleteKey={() => undefined}
+        />
+      </Block>
+
+      <Block title="Members — model checklist, key shown once, empty">
+        <ModelChecklist models={MODELS_FIXTURE} selected={checklistSel} onChange={setChecklistSel} />
+        <KeyTokenBlock token="pt_00000000000000000000000000000000" />
+        <Empty sentence="No members yet — members hold the API keys people call the proxy with." />
+      </Block>
+
+      <Block title="Pricing — scoped rules table (fixtures)">
+        <PricingTable
+          prices={PRICES_FIXTURE}
+          providers={PROVIDERS_FIXTURE}
+          accounts={ACCOUNTS_FIXTURE}
+          onEdit={() => undefined}
+          onDelete={() => undefined}
+        />
+        <p className="text-body text-muted">Unpriced: claude-pool · embed-small</p>
+        <Empty sentence="No price rules yet — requests are metered, but cost stays unknown until a model has a price." />
       </Block>
 
       <Drawer open={drawer} onClose={() => setDrawer(false)} title="Drawer">
