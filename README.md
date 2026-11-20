@@ -44,6 +44,19 @@ LAN-only by design: plain HTTP on all interfaces, no TLS, no tunnel code —
 public exposure is a deliberate operator move, later. Full route reference:
 [API.md](API.md).
 
+## Analytics
+
+Four admin endpoints (Bearer `$ADMIN_TOKEN`) read the captured `Request` rows:
+grouped aggregates, bucketed series, a paginated request log, and a live SSE
+feed of every call as it lands:
+
+```bash
+curl "http://127.0.0.1:8477/admin/analytics/summary?groupBy=account" -H "Authorization: Bearer $ADMIN_TOKEN"        # totals per provider/account/model/key/member
+curl "http://127.0.0.1:8477/admin/analytics/timeseries?metric=cost&bucket=hour" -H "Authorization: Bearer $ADMIN_TOKEN"  # zero-filled hourly/daily buckets
+curl "http://127.0.0.1:8477/admin/requests?status=error&limit=10" -H "Authorization: Bearer $ADMIN_TOKEN"               # filterable log, cursor-stable pagination
+curl -N "http://127.0.0.1:8477/admin/analytics/feed" -H "Authorization: Bearer $ADMIN_TOKEN"                              # live SSE, backfill via /admin/requests
+```
+
 ## Self-host (docker)
 
 `docker-compose.yml` runs the API plus a Postgres 16 (`pgdata` volume);
