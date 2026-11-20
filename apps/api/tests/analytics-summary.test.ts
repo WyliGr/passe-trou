@@ -176,6 +176,68 @@ describe("GET /admin/analytics/summary — provider axis, exact metrics", () => 
   });
 });
 
+describe("GET /admin/analytics/summary — account/model/key/member axes", () => {
+  it("groups by account with account labels", async () => {
+    const f = await seedFixture();
+    const body = await summaryOk("?groupBy=account");
+    expect(body.rows.map((r) => r.key)).toEqual([f.a2.id, f.a1.id]);
+    expect(body.rows[0]!.label).toBe(f.a2.label);
+    expect(body.rows[1]!.label).toBe(f.a1.label);
+    expect(body.rows[1]).toMatchObject({ requests: 3, errors: 1, costUsd: 0.11 });
+    expect(body.rows[0]).toMatchObject({ requests: 1, errors: 0, costUsd: 0.3 });
+  });
+
+  it("groups by model: deleted model collapses to key 'none' with null label", async () => {
+    const f = await seedFixture();
+    const body = await summaryOk("?groupBy=model");
+    expect(body.rows.map((r) => r.key)).toEqual([f.mo1.id, "none", f.mo2.id]);
+    const [mo1Row, goneRow, mo2Row] = body.rows as [Summary["rows"][0], Summary["rows"][0], Summary["rows"][0]];
+    expect(mo1Row.label).toBe(f.mo1.name);
+    expect(mo1Row).toMatchObject({ requests: 2, errors: 0, costUsd: 0.4, avgLatencyMs: 200 });
+    expect(goneRow.label).toBeNull(); // FK row deleted after insert
+    expect(goneRow).toMatchObject({ requests: 1, costUsd: 0.01 });
+    expect(mo2Row.label).toBe(f.mo2.name);
+    expect(mo2Row).toMatchObject({ requests: 1, errors: 1, errorRate: 1, avgTtftMs: null });
+  });
+
+  it("groups by key with 'label (prefix)' rendering", async () => {
+    const f = await seedFixture();
+    const body = await summaryOk("?groupBy=key");
+    expect(body.rows.map((r) => r.key)).toEqual([f.k2.id, f.k1.id]);
+    expect(body.rows[0]!.label).toBe(`vox (pt-x${f.tag})`);
+    expect(body.rows[1]!.label).toBe(`heermes (pt-${f.tag})`);
+    expect(body.rows[1]).toMatchObject({ requests: 3, toolCalls: 2 });
+  });
+
+  it("groups by member with member names", async () => {
+    const f = await seedFixture();
+    const body = await summaryOk("?groupBy=member");
+    expect(body.rows.map((r) => r.key)).toEqual([f.m2.id, f.m1.id]);
+    expect(body.rows[0]!.label).toBe(f.m2.name);
+    expect(body.rows[1]!.label).toBe(f.m1.name);
+    expect(body.rows[1]).toMatchObject({ requests: 3, errors: 1, cachedTokens: 200 });
+  });
+});
+
+describe("GET /admin/analytics/summary — window boundaries", () => {
+  it("zeroes the total and returns no rows for an empty range", async () => {
+    await seedFixture();
+    const body = await summaryOk("?from=2020-01-01T00:00:00Z&to=2020-02-01T00:00:00Z");
+    expect(body.total).toEqual(ZERO_METRICS);
+    expect(body.rows).toEqual([]);
+  });
+
+  it("an explicit 30d window also covers the 8-day-old row", async () => {
+    const f = await seedFixture();
+    const from = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
+    const to = new Date().toISOString();
+    const body = await summaryOk(`?from=${from}&to=${to}`);
+    expect(body.total.requests).toBe(5);
+    const beta = body.rows.find((r) => r.key === f.p2.id)!;
+    expect(beta).toMatchObject({ requests: 2, costUsd: 0.37 });
+  });
+});
+
 describe("GET /admin/analytics/summary — query params", () => {
   it("rejects an unknown groupBy with 400", async () => {
     const res = await summary("?groupBy=bogus");
