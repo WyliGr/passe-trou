@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+/* Design tokens — docs/design/direction.md §2, verbatim. */
+:root {
+  --ground: #171719;
+  --surface: #131217;
+  --raised: #212023;
+  --border: #222224;
+  --rule: #1b1a1f;
+  --control: #3a3a3e;
+  --text: #ffffff;
+  --muted: #8a8c92;
+  --accent: #4a8ad6;
+  --positive: #44a282;
+  --negative: #e5566f;
+  --warning: #d9a441;
+  --chart-1: #f2f2f3;
+  --chart-2: #e5566f;
+  --chart-3: #4a8ad6;
+  --pill-positive-bg: #1b2828; --pill-positive-ink: #5fc39c;
+  --pill-negative-bg: #2c1a20; --pill-negative-ink: #e5566f;
+  --pill-warning-bg: #2a2416; --pill-warning-ink: #d9a441;
+  --pill-neutral-bg: #212023; --pill-neutral-ink: #bdbdc0;
+  --shadow: 0 12px 28px rgba(0,0,0,.2);
+  --radius-card: 6px;
+  --radius-control: 999px;
+  --row-height: 42px;
+  --sidebar-width: 50px;
+  --gap: 24px;
+  --pad: 32px;
+  --control-height: 34px;
+  --fs-title: 26px;
+  --fs-section: 20px;
+  --fs-kpi: 20px;
+  --fs-body: 13px;
+  --fs-small: 12px;
+}
+
+/* Wire the tokens into Tailwind so utilities reference the custom properties. */
+@theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-border: var(--border);
+  --color-rule: var(--rule);
+  --color-control: var(--control);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-warning: var(--warning);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-pill-positive-bg: var(--pill-positive-bg);
+  --color-pill-positive-ink: var(--pill-positive-ink);
+  --color-pill-negative-bg: var(--pill-negative-bg);
+  --color-pill-negative-ink: var(--pill-negative-ink);
+  --color-pill-warning-bg: var(--pill-warning-bg);
+  --color-pill-warning-ink: var(--pill-warning-ink);
+  --color-pill-neutral-bg: var(--pill-neutral-bg);
+  --color-pill-neutral-ink: var(--pill-neutral-ink);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --text-title: var(--fs-title);
+  --text-section: var(--fs-section);
+  --text-kpi: var(--fs-kpi);
+  --text-body: var(--fs-body);
+  --text-small: var(--fs-small);
+  --shadow-card: var(--shadow);
+  --radius-card: var(--radius-card);
+  --radius-control: var(--radius-control);
+}
+
+html,
+body {
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--fs-body);
+  line-height: 20px;
+}
+
+/* The face: every figure, id, timestamp, table and KPI is IBM Plex Mono with tabular digits. */
+.font-mono,
+code,
+kbd,
+samp {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--raised);
+}
