@@ -10,7 +10,7 @@ function base(props: IconProps, children: React.ReactNode) {
       height="16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

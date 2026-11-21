@@ -52,11 +52,11 @@ function RailLink({ item, pathname }: { item: NavItem; pathname: string }) {
       href={item.href}
       aria-label={item.label}
       aria-current={active ? "page" : undefined}
-      className="group relative flex h-11 w-full flex-col items-center justify-center gap-0.5 text-secondary hover:text-foreground max-md:h-14"
+      className="group relative flex h-11 w-full flex-col items-center justify-center gap-0.5 text-[#7c7c7c] transition-colors hover:text-foreground max-md:h-14"
     >
       <span
-        className={`flex h-8 w-8 items-center justify-center rounded-md ${
-          active ? "bg-muted text-foreground" : ""
+        className={`flex h-9 w-9 items-center justify-center rounded-md ${
+          active ? "bg-surface text-foreground" : "hover:bg-muted"
         }`}
       >
         <item.Icon />

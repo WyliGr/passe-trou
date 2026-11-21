@@ -29,7 +29,7 @@ export function KpiStrip({
 }) {
   return (
     <div
-      className="grid grid-cols-[repeat(var(--kpi-cols),minmax(0,1fr))] divide-x divide-border max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-5 max-md:divide-x-0"
+      className="grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] divide-x divide-border max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-5 max-md:divide-x-0"
       // Cell count is data-driven (5 on W12, 7 with comparisons) — passed as a CSS var.
       style={{ "--kpi-cols": String(Math.max(cols ?? items.length, 1)) } as React.CSSProperties}
       role={onSelect ? "tablist" : undefined}
@@ -43,21 +43,21 @@ export function KpiStrip({
             role={onSelect ? "tab" : undefined}
             aria-selected={onSelect ? selected : undefined}
             onClick={() => onSelect?.(item.id)}
-            className={`rounded-md px-4 py-3 text-left first:pl-4 max-md:px-0 max-md:py-0 ${
-              selected ? "bg-muted" : ""
+            className={`min-w-0 overflow-hidden rounded-md px-4 py-4 text-left transition-colors first:pl-4 max-md:px-0 max-md:py-0 ${
+              selected ? "bg-muted" : onSelect ? "hover:bg-muted/60" : ""
             }`}
           >
             <span className={`label block ${selected ? "text-foreground" : "text-secondary"}`}>
               {item.label}
             </span>
-            <span className="mt-1 block leading-6">
+            <span className="mt-1.5 block min-w-0 overflow-hidden whitespace-nowrap leading-7">
               {item.value === null ? (
                 <span className="text-small text-secondary">–</span>
               ) : (
                 <>
-                  <span className="data-md text-foreground">{item.value}</span>
+                  <span className="stat-value font-mono text-foreground">{item.value}</span>
                   {item.unit && (
-                    <span className="ml-1 text-small text-secondary">{item.unit}</span>
+                    <span className="ml-1.5 text-small text-secondary">{item.unit}</span>
                   )}
                 </>
               )}

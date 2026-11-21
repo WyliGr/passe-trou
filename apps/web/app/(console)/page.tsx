@@ -324,9 +324,6 @@ export default function OverviewPage() {
   return (
     <div className="flex flex-col" style={{ gap: "var(--gap)" }}>
       <div>
-        <div className="mb-3 text-[15px] font-semibold">
-          passe<span className="text-secondary">•</span>trou
-        </div>
         <PageTitle
           title="Overview"
           {...(finding && { finding })}

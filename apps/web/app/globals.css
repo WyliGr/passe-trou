@@ -111,6 +111,13 @@ samp {
   font-size: 0.8125rem;
   line-height: 1.4;
 }
+/* KPI/stat numbers: big enough to read as data, still tabular mono. */
+.stat-value {
+  font-size: 1.375rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
 .data-xs {
   font-size: 0.6875rem;
   line-height: 1.45;

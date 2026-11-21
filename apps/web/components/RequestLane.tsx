@@ -5,7 +5,7 @@
 // feed (backfilled from /admin/requests so it is never empty on mount).
 // Click-through to /requests. Unmount closes the feed.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { connectFeed, type FeedState } from "@/lib/feed";
@@ -49,7 +49,7 @@ export function RequestLane({
   fixtures?: { events: LaneEvent[]; feedState?: FeedState };
 }) {
   const router = useRouter();
-  const hostRef = useRef<HTMLDivElement>(null);
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
   const [events, setEvents] = useState<LaneEvent[]>(fixtures?.events ?? []);
   const [feedState, setFeedState] = useState<FeedState>(fixtures?.feedState ?? "connecting");
@@ -58,15 +58,16 @@ export function RequestLane({
   );
   const [nowMs, setNowMs] = useState(() => Date.now());
 
+  // hostRef is stale across skeleton → data transitions; a callback ref re-subscribes on mount.
   useLayoutEffect(() => {
-    const el = hostRef.current;
-    if (!el) return;
+    if (!host) return;
+    setWidth(Math.floor(host.clientWidth));
     const ro = new ResizeObserver((entries) => {
       setWidth(Math.floor(entries[0]?.contentRect.width ?? 0));
     });
-    ro.observe(el);
+    ro.observe(host);
     return () => ro.disconnect();
-  }, []);
+  }, [host]);
 
   // The window is anchored to now; a slow tick keeps positions and axis honest.
   useEffect(() => {
@@ -158,7 +159,7 @@ export function RequestLane({
           aria-label="Open the requests screen"
           className="block w-full cursor-pointer text-left"
         >
-          <div ref={hostRef} className="h-[72px]">
+          <div ref={setHost} className="h-[72px]">
             {width > 0 && (
               <svg width={width} height={72} className="block" aria-hidden="true">
                 <line
