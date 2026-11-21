@@ -94,7 +94,7 @@ export default function ModelsPage() {
       {state.status === "error" ? (
         <ErrorBlock error={state.error} onRetry={load} />
       ) : models === null ? (
-        <section className="rounded-card bg-surface p-6">
+        <section className="rounded-lg bg-surface p-6">
           <SkeletonRows rows={4} />
         </section>
       ) : models.length === 0 ? (
@@ -108,20 +108,20 @@ export default function ModelsPage() {
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-card bg-surface p-6">
+        <div className="overflow-x-auto rounded-lg bg-surface p-6">
           <table className="w-full border-collapse text-body">
             <thead>
               <tr className="h-9">
                 <th scope="col" className="w-6 pr-2" aria-label="Expand" />
-                <th scope="col" className="pr-4 text-left text-small font-normal text-muted">
+                <th scope="col" className="pr-4 text-left label text-secondary">
                   Model
                 </th>
-                <th scope="col" className="pr-4 text-left text-small font-normal text-muted">
+                <th scope="col" className="pr-4 text-left label text-secondary">
                   Wire format
                 </th>
                 <th
                   scope="col"
-                  className="pr-4 text-right text-small font-normal text-muted"
+                  className="pr-4 text-right label text-secondary"
                 >
                   Mapped accounts
                 </th>
@@ -135,15 +135,15 @@ export default function ModelsPage() {
                   <tr
                     key={m.id}
                     onClick={() => toggle(m.id)}
-                    className="group h-[var(--row-height)] cursor-pointer border-t border-rule"
+                    className="group h-[var(--row-height)] cursor-pointer border-t border-border"
                   >
                     <td className="pr-2">
                       <IconChevronRight
-                        className={`text-muted transition-transform ${openRow ? "rotate-90" : ""}`}
+                        className={`text-secondary transition-transform ${openRow ? "rotate-90" : ""}`}
                       />
                     </td>
                     <td className="pr-4">
-                      <span className="text-text">{m.displayName}</span>
+                      <span className="text-foreground">{m.displayName}</span>
                       {!m.enabled ? (
                         <span className="ml-2 align-middle">
                           <Pill variant="neutral">disabled</Pill>
@@ -156,7 +156,7 @@ export default function ModelsPage() {
                         )
                       )}
                     </td>
-                    <td className="pr-4 text-muted">{modelWireFormat(m)}</td>
+                    <td className="pr-4 text-secondary">{modelWireFormat(m)}</td>
                     <td className="pr-4 text-right font-mono tabular-nums">
                       {m.mappings.length}
                     </td>
@@ -168,7 +168,7 @@ export default function ModelsPage() {
                             e.stopPropagation();
                             setDrawer({ kind: "edit", model: m });
                           }}
-                          className="text-text hover:text-accent"
+                          className="text-foreground hover:text-primary"
                         >
                           Edit
                         </button>
@@ -179,7 +179,7 @@ export default function ModelsPage() {
                             setDeleteError(null);
                             setDrawer({ kind: "delete", model: m });
                           }}
-                          className="text-negative hover:bg-pill-negative-bg"
+                          className="text-error hover:bg-error-surface"
                         >
                           Delete
                         </button>
@@ -188,11 +188,11 @@ export default function ModelsPage() {
                   </tr>,
                   ...(openRow
                     ? [
-                        <tr key={`${m.id}:mappings`} className="border-t border-rule">
+                        <tr key={`${m.id}:mappings`} className="border-t border-border">
                           <td />
                           <td colSpan={4} className="py-1">
                             {m.mappings.length === 0 ? (
-                              <p className="py-2 text-body text-muted">
+                              <p className="py-2 text-body text-secondary">
                                 No accounts mapped — this model is not callable.
                               </p>
                             ) : (
@@ -202,13 +202,13 @@ export default function ModelsPage() {
                                   className="group/map flex h-9 items-center gap-3"
                                 >
                                   <span className="min-w-0 flex-1 text-body">
-                                    <span className="text-text">{x.accountName}</span>
-                                    <span className="text-muted"> · {x.providerName}</span>
+                                    <span className="text-foreground">{x.accountName}</span>
+                                    <span className="text-secondary"> · {x.providerName}</span>
                                   </span>
                                   {!x.accountEnabled && (
                                     <Pill variant="warning">benched</Pill>
                                   )}
-                                  <span className="font-mono text-body text-muted">
+                                  <span className="font-mono text-body text-secondary">
                                     {x.upstreamModel}
                                   </span>
                                   <span className="flex w-14 justify-end opacity-0 transition-opacity group-hover/map:opacity-100 group-focus-within/map:opacity-100">
@@ -216,7 +216,7 @@ export default function ModelsPage() {
                                       type="button"
                                       disabled={deletingMapping === x.id}
                                       onClick={() => void removeMapping(m, x.id)}
-                                      className="text-negative hover:bg-pill-negative-bg disabled:opacity-50"
+                                      className="text-error hover:bg-error-surface disabled:opacity-50"
                                     >
                                       Delete
                                     </button>
@@ -229,11 +229,11 @@ export default function ModelsPage() {
                                 <ErrorBlock error={mappingErrors[m.id]} />
                               </div>
                             ) : null}
-                            <div className="mt-1 border-t border-rule pt-2">
+                            <div className="mt-1 border-t border-border pt-2">
                               <button
                                 type="button"
                                 onClick={() => setDrawer({ kind: "map", model: m })}
-                                className="h-[28px] rounded-control border border-control px-3 text-small text-text hover:border-muted"
+                                className="h-[28px] rounded-md bg-muted px-3 text-small text-foreground hover:bg-border"
                               >
                                 Map account…
                               </button>

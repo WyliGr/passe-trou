@@ -59,14 +59,14 @@ function FormFooter({
         type="button"
         onClick={onCancel}
         disabled={pending}
-        className="h-[var(--control-height)] rounded-control px-3 text-sm text-muted hover:text-text"
+        className="h-[var(--control-height)] rounded-md px-3 text-sm text-secondary hover:text-foreground"
       >
         Cancel
       </button>
       <button
         type="submit"
         disabled={pending || disabled}
-        className="h-[var(--control-height)] rounded-control border border-control px-4 text-sm text-text hover:border-muted disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-[var(--control-height)] rounded-md bg-muted px-4 text-sm text-foreground hover:bg-border disabled:cursor-not-allowed disabled:opacity-50"
       >
         {pending ? "Saving…" : submitLabel}
       </button>
@@ -169,7 +169,7 @@ export function ProviderDrawer({
           <TextInput value={baseUrl} onChange={setBaseUrl} disabled={pending} placeholder="https://" />
         </Field>
         {errors.form && (
-          <p className="text-body text-negative" role="alert">
+          <p className="text-body text-error" role="alert">
             {errors.form}
           </p>
         )}
@@ -331,8 +331,8 @@ export function AccountDrawer({
     <Drawer open={open} onClose={onClose} title={title}>
       {step === "credential" && created ? (
         <div className="flex flex-col gap-4">
-          <p className="text-body text-muted">
-            <span className="text-text">{created.displayName}</span> is created. Add its upstream
+          <p className="text-body text-secondary">
+            <span className="text-foreground">{created.displayName}</span> is created. Add its upstream
             API key now or later — the account cannot serve until one is stored.
           </p>
           <Field
@@ -352,7 +352,7 @@ export function AccountDrawer({
               type="button"
               onClick={onSaved}
               disabled={pending}
-              className="h-[var(--control-height)] rounded-control px-3 text-sm text-muted hover:text-text"
+              className="h-[var(--control-height)] rounded-md px-3 text-sm text-secondary hover:text-foreground"
             >
               Add later
             </button>
@@ -362,7 +362,7 @@ export function AccountDrawer({
               onClick={async () => {
                 if (await saveCredential(created.id)) onSaved();
               }}
-              className="h-[var(--control-height)] rounded-control border border-control px-4 text-sm text-text hover:border-muted disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-[var(--control-height)] rounded-md bg-muted px-4 text-sm text-foreground hover:bg-border disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pending ? "Saving…" : "Save credential"}
             </button>
@@ -392,12 +392,12 @@ export function AccountDrawer({
             </Field>
           )}
           {edit && (
-            <div className="rounded-card border border-rule p-4">
-              <p className="text-sm font-medium text-text">Credential</p>
-              <p className="mt-1 text-small text-muted">
+            <div className="rounded-lg border border-border p-4">
+              <p className="text-sm font-medium text-foreground">Credential</p>
+              <p className="mt-1 text-small text-secondary">
                 Stored encrypted; only the key prefix is kept for display.
               </p>
-              <p className="mt-2 font-mono text-body text-muted">
+              <p className="mt-2 font-mono text-body text-secondary">
                 {keyPrefix ? `${keyPrefix}…` : <span className="font-sans text-warning">no credential</span>}
               </p>
               {replacing ? (
@@ -419,7 +419,7 @@ export function AccountDrawer({
                         setErrors({});
                       }}
                       disabled={pending}
-                      className="h-[28px] rounded-control px-3 text-small text-muted hover:text-text"
+                      className="h-[28px] rounded-md px-3 text-small text-secondary hover:text-foreground"
                     >
                       Cancel
                     </button>
@@ -432,7 +432,7 @@ export function AccountDrawer({
                           setApiKey("");
                         }
                       }}
-                      className="h-[28px] rounded-control border border-control px-3 text-small text-text hover:border-muted disabled:opacity-50"
+                      className="h-[28px] rounded-md bg-muted px-3 text-small text-foreground hover:bg-border disabled:opacity-50"
                     >
                       {pending ? "Saving…" : "Replace"}
                     </button>
@@ -443,14 +443,14 @@ export function AccountDrawer({
                   <button
                     type="button"
                     onClick={() => setReplacing(true)}
-                    className="h-[28px] rounded-control border border-control px-3 text-small text-text hover:border-muted"
+                    className="h-[28px] rounded-md bg-muted px-3 text-small text-foreground hover:bg-border"
                   >
                     Replace key
                   </button>
                   {keyPrefix &&
                     (removing ? (
                       <>
-                        <span className="text-small text-muted">Drop the stored key?</span>
+                        <span className="text-small text-secondary">Drop the stored key?</span>
                         <button
                           type="button"
                           disabled={pending}
@@ -470,7 +470,7 @@ export function AccountDrawer({
                               setPending(false);
                             }
                           }}
-                          className="h-[28px] rounded-control px-2 text-small text-negative hover:bg-pill-negative-bg disabled:opacity-50"
+                          className="h-[28px] rounded-md px-2 text-small text-error hover:bg-error-surface disabled:opacity-50"
                         >
                           {pending ? "Removing…" : "Confirm"}
                         </button>
@@ -478,7 +478,7 @@ export function AccountDrawer({
                           type="button"
                           onClick={() => setRemoving(false)}
                           disabled={pending}
-                          className="h-[28px] rounded-control px-2 text-small text-muted hover:text-text"
+                          className="h-[28px] rounded-md px-2 text-small text-secondary hover:text-foreground"
                         >
                           Cancel
                         </button>
@@ -487,7 +487,7 @@ export function AccountDrawer({
                       <button
                         type="button"
                         onClick={() => setRemoving(true)}
-                        className="h-[28px] rounded-control px-2 text-small text-negative hover:bg-pill-negative-bg"
+                        className="h-[28px] rounded-md px-2 text-small text-error hover:bg-error-surface"
                       >
                         Remove
                       </button>
@@ -495,14 +495,14 @@ export function AccountDrawer({
                 </div>
               )}
               {errors.credential && (
-                <p className="mt-2 text-body text-negative" role="alert">
+                <p className="mt-2 text-body text-error" role="alert">
                   {errors.credential}
                 </p>
               )}
             </div>
           )}
           {errors.form && (
-            <p className="text-body text-negative" role="alert">
+            <p className="text-body text-error" role="alert">
               {errors.form}
             </p>
           )}

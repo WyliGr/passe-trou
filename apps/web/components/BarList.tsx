@@ -1,7 +1,8 @@
 "use client";
 
-// Sorted bar list per direction.md §5: 64px row pitch, a label line (name + 12px muted share),
-// then a 10px pill bar in --chart-1 with NO track, the mono value 5px after the bar's end.
+// Sorted bar list (DESIGN.md): 64px row pitch, a label line (name + secondary mono
+// share), then a 10px pill bar in the accent with NO track, the mono value 5px after
+// the bar's end — one tint per chart, never a rainbow.
 // Widths are measured from data (longest bar ≈ 88% of the width left after the widest value
 // label), never CSS guesswork. Max `maxRows` rows + a "+N more" muted line.
 
@@ -46,20 +47,20 @@ export function BarList({
         shown.map((r) => (
           <div key={r.id} role="listitem" className="flex h-16 flex-col justify-center gap-2">
             <div className="flex items-baseline justify-between gap-3">
-              <span className="truncate text-body text-text" title={r.name}>
+              <span className="truncate text-body text-foreground" title={r.name}>
                 {r.name}
               </span>
-              <span className="shrink-0 font-mono text-small text-muted">
+              <span className="shrink-0 font-mono text-small text-secondary">
                 {fmtShare(r.share)}
               </span>
             </div>
             <div className="flex items-center">
               {r.value === null ? (
-                <span className="text-sm text-muted">–</span>
+                <span className="text-sm text-secondary">–</span>
               ) : (
                 <>
                   <div
-                    className="h-2.5 shrink-0 rounded-full bg-chart-1"
+                    className="h-2.5 shrink-0 rounded-full bg-primary"
                     style={{ width: barPx(r.value) }}
                   />
                   <span className="ml-[5px] whitespace-nowrap font-mono text-body tabular-nums">
@@ -70,7 +71,7 @@ export function BarList({
             </div>
           </div>
         ))}
-      {width > 0 && more > 0 && <p className="mt-2 text-body text-muted">+{more} more</p>}
+      {width > 0 && more > 0 && <p className="mt-2 text-body text-secondary">+{more} more</p>}
     </div>
   );
 }

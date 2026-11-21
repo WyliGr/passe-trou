@@ -1,7 +1,7 @@
 "use client";
 
-// The one primary creation control per page: outlined 34px, never filled, selection-mark style —
-// the 1px accent line exactly as wide as the label (DESIGN.md "the move").
+// The one primary action per screen (DESIGN.md button-primary): blue fill, white text,
+// rounded-md; hover primary-hover, pressed primary-strong. Everything else is secondary.
 
 export function CreateButton({
   label,
@@ -14,15 +14,9 @@ export function CreateButton({
     <button
       type="button"
       onClick={onClick}
-      className="h-[var(--control-height)] rounded-control border border-control px-4 text-sm text-text hover:border-muted"
+      className="h-[var(--control-height)] rounded-md bg-primary px-4 text-sm font-medium text-white hover:bg-primary-hover active:bg-primary-strong"
     >
-      <span className="relative inline-block pb-[3px]">
-        {label}
-        <span
-          aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 h-px bg-accent"
-        />
-      </span>
+      {label}
     </button>
   );
 }

@@ -1,16 +1,17 @@
 "use client";
 
-// Equal KPI cells in one divided strip: 14/500 muted label over a 20px/400 mono value with a muted
-// unit suffix; the selected cell carries the 1px accent line exactly as wide as its label.
+// Stat cells in one divided strip (DESIGN.md stat-card): `label` secondary over a
+// data-md mono foreground value with a secondary unit suffix; selection is a muted
+// cell fill, never an accent line. Deltas stay as discrete secondary words.
 
 export interface KpiItem {
   id: string;
   label: string;
-  value: string | null; // null = missing → grey dash at label size
+  value: string | null; // null = missing → secondary dash
   unit?: string;
-  /** 12px comparison line under the value ("+12% vs the 24h before"). */
+  /** Comparison line under the value ("+12% vs the 24h before"). */
   sub?: string;
-  /** Polarity rule: only error-rate and spend deltas carry colour. */
+  /** Kept for callers; deltas render in secondary regardless (DESIGN.md). */
   subTone?: "muted" | "positive" | "negative";
 }
 
@@ -28,7 +29,7 @@ export function KpiStrip({
 }) {
   return (
     <div
-      className="grid grid-cols-[repeat(var(--kpi-cols),minmax(0,1fr))] divide-x divide-rule max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-5 max-md:divide-x-0"
+      className="grid grid-cols-[repeat(var(--kpi-cols),minmax(0,1fr))] divide-x divide-border max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-5 max-md:divide-x-0"
       // Cell count is data-driven (5 on W12, 7 with comparisons) — passed as a CSS var.
       style={{ "--kpi-cols": String(Math.max(cols ?? items.length, 1)) } as React.CSSProperties}
       role={onSelect ? "tablist" : undefined}
@@ -42,38 +43,27 @@ export function KpiStrip({
             role={onSelect ? "tab" : undefined}
             aria-selected={onSelect ? selected : undefined}
             onClick={() => onSelect?.(item.id)}
-            className="px-4 py-3 text-left first:pl-0 max-md:px-0 max-md:first:pl-0 max-md:py-0"
+            className={`rounded-md px-4 py-3 text-left first:pl-4 max-md:px-0 max-md:py-0 ${
+              selected ? "bg-muted" : ""
+            }`}
           >
-            <span className="relative inline-block pb-[3px] text-sm font-medium text-muted">
+            <span className={`label block ${selected ? "text-foreground" : "text-secondary"}`}>
               {item.label}
-              {selected && (
-                <span className="absolute inset-x-0 bottom-0 h-px bg-accent" aria-hidden="true" />
-              )}
             </span>
             <span className="mt-1 block leading-6">
               {item.value === null ? (
-                <span className="text-sm text-muted">–</span>
+                <span className="text-small text-secondary">–</span>
               ) : (
                 <>
-                  <span className="font-mono text-kpi text-text">{item.value}</span>
+                  <span className="data-md text-foreground">{item.value}</span>
                   {item.unit && (
-                    <span className="ml-1 text-sm text-muted">{item.unit}</span>
+                    <span className="ml-1 text-small text-secondary">{item.unit}</span>
                   )}
                 </>
               )}
             </span>
             {item.sub !== undefined ? (
-              <span
-                className={`mt-0.5 block text-small ${
-                  item.subTone === "positive"
-                    ? "text-positive"
-                    : item.subTone === "negative"
-                      ? "text-negative"
-                      : "text-muted"
-                }`}
-              >
-                {item.sub}
-              </span>
+              <span className="mt-0.5 block text-small text-secondary">{item.sub}</span>
             ) : (
               <span className="mt-0.5 block text-small">&nbsp;</span>
             )}

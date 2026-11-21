@@ -9,12 +9,12 @@ import { Pill } from "@/components/Pill";
 import type { RequestRow } from "@/lib/requests";
 import { fmtCost, fmtInt, fmtMs } from "@/lib/format";
 
-const dash = <span className="text-muted">–</span>;
+const dash = <span className="text-secondary">–</span>;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-6">
-      <h3 className="mb-2 text-section font-normal text-muted">{title}</h3>
+      <h3 className="label mb-2 text-secondary">{title}</h3>
       <dl className="flex flex-col gap-1.5">{children}</dl>
     </section>
   );
@@ -31,7 +31,7 @@ function Field({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-4 text-body">
-      <dt className="flex-none text-muted">{label}</dt>
+      <dt className="flex-none text-secondary">{label}</dt>
       <dd className={`break-all text-right ${mono ? "font-mono" : ""}`}>{children}</dd>
     </div>
   );
@@ -53,7 +53,7 @@ function CopyId({ id }: { id: string }) {
             // clipboard blocked — id stays selectable
           }
         }}
-        className="h-[22px] flex-none rounded-control border border-control px-2 text-small text-muted hover:border-muted hover:text-text"
+        className="h-[22px] flex-none rounded-md bg-muted px-2 text-small text-secondary hover:bg-border hover:text-foreground"
       >
         {copied ? "copied" : "copy"}
       </button>
@@ -70,11 +70,11 @@ export function RequestDrawer({
 }) {
   const statusPill =
     row?.status === "error" ? (
-      <Pill variant="negative">error</Pill>
+      <Pill variant="error">error</Pill>
     ) : row?.status === "aborted" ? (
       <Pill variant="warning">aborted</Pill>
     ) : (
-      <span className="text-muted">ok</span>
+      <span className="text-secondary">ok</span>
     );
 
   return (

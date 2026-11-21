@@ -1,98 +1,127 @@
 @import "tailwindcss";
 
-/* Design tokens — docs/design/direction.md §2, verbatim. */
+/* Design tokens — DESIGN.md (T3 Code-derived control plane), verbatim. */
 :root {
-  --ground: #171719;
-  --surface: #131217;
-  --raised: #212023;
-  --border: #222224;
-  --rule: #1b1a1f;
-  --control: #3a3a3e;
-  --text: #ffffff;
-  --muted: #8a8c92;
-  --accent: #4a8ad6;
-  --positive: #44a282;
-  --negative: #e5566f;
-  --warning: #d9a441;
-  --chart-1: #f2f2f3;
-  --chart-2: #e5566f;
-  --chart-3: #4a8ad6;
-  --pill-positive-bg: #1b2828; --pill-positive-ink: #5fc39c;
-  --pill-negative-bg: #2c1a20; --pill-negative-ink: #e5566f;
-  --pill-warning-bg: #2a2416; --pill-warning-ink: #d9a441;
-  --pill-neutral-bg: #212023; --pill-neutral-ink: #bdbdc0;
-  --shadow: 0 12px 28px rgba(0,0,0,.2);
-  --radius-card: 6px;
-  --radius-control: 999px;
+  --primary: #346bf1;
+  --primary-strong: #1b4ed8;
+  --primary-hover: #2e62e6;
+  --foreground: #f5f5f5;
+  --secondary: #a3a3a3;
+  --neutral: #000000;
+  --surface: #111111;
+  --muted: #0a0a0a;
+  --border: #141414;
+  --success: #34d399;
+  --success-surface: #082218;
+  --warning: #fbbf24;
+  --warning-surface: #281f05;
+  --error: #f87171;
+  --error-surface: #281212;
+  --info: #60a5fa;
+  --info-surface: #0f1a28;
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* The only shadow allowed: floating overlays (drawers, dialogs, chart tooltips). */
+  --shadow-overlay: 0 14px 32px -18px rgb(0 0 0 / 75%);
   --row-height: 42px;
-  --sidebar-width: 50px;
   --gap: 24px;
   --pad: 32px;
-  --control-height: 34px;
-  --fs-title: 26px;
-  --fs-section: 20px;
-  --fs-kpi: 20px;
-  --fs-body: 13px;
-  --fs-small: 12px;
+  --control-height: 36px;
 }
 
 /* Wire the tokens into Tailwind so utilities reference the custom properties. */
 @theme inline {
-  --color-ground: var(--ground);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-hover: var(--primary-hover);
+  --color-foreground: var(--foreground);
+  --color-secondary: var(--secondary);
+  --color-neutral: var(--neutral);
   --color-surface: var(--surface);
-  --color-raised: var(--raised);
-  --color-border: var(--border);
-  --color-rule: var(--rule);
-  --color-control: var(--control);
-  --color-text: var(--text);
   --color-muted: var(--muted);
-  --color-accent: var(--accent);
-  --color-positive: var(--positive);
-  --color-negative: var(--negative);
+  --color-border: var(--border);
+  --color-success: var(--success);
+  --color-success-surface: var(--success-surface);
   --color-warning: var(--warning);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-pill-positive-bg: var(--pill-positive-bg);
-  --color-pill-positive-ink: var(--pill-positive-ink);
-  --color-pill-negative-bg: var(--pill-negative-bg);
-  --color-pill-negative-ink: var(--pill-negative-ink);
-  --color-pill-warning-bg: var(--pill-warning-bg);
-  --color-pill-warning-ink: var(--pill-warning-ink);
-  --color-pill-neutral-bg: var(--pill-neutral-bg);
-  --color-pill-neutral-ink: var(--pill-neutral-ink);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
-  --text-title: var(--fs-title);
-  --text-section: var(--fs-section);
-  --text-kpi: var(--fs-kpi);
-  --text-body: var(--fs-body);
-  --text-small: var(--fs-small);
-  --shadow-card: var(--shadow);
-  --radius-card: var(--radius-card);
-  --radius-control: var(--radius-control);
+  --color-warning-surface: var(--warning-surface);
+  --color-error: var(--error);
+  --color-error-surface: var(--error-surface);
+  --color-info: var(--info);
+  --color-info-surface: var(--info-surface);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 999px;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5;
+  --text-small: 0.75rem;
+  --text-small--line-height: 1.4;
+  --shadow-card: var(--shadow-overlay);
 }
 
 html,
 body {
-  background: var(--ground);
-  color: var(--text);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  font-size: var(--fs-body);
-  line-height: 20px;
+  background: var(--neutral);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+body {
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
-/* The face: every figure, id, timestamp, table and KPI is IBM Plex Mono with tabular digits. */
+/* Type scale (DESIGN.md §Typography): classes carry size + weight + tracking. */
+.h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+/* 11px/500 +0.04em, sentence case — badges, table headers, sidebar sections. */
+.label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+}
+
+/* Mono is reserved to data: metrics, IDs, model names, keys, feed timestamps. */
 .font-mono,
+.data-md,
+.data-xs,
 code,
 kbd,
 samp {
-  font-family: var(--font-mono), ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+.data-md {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.data-xs {
+  font-size: 0.6875rem;
+  line-height: 1.45;
+}
+code {
+  font-size: 0.8125rem;
+  line-height: 1.6;
 }
 
 ::selection {
-  background: var(--raised);
+  background: var(--surface);
 }
 
 /* Live motion: lane dots fade/slide in over 120ms, prepended table rows over 150ms. */

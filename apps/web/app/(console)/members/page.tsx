@@ -101,13 +101,15 @@ export default function MembersPage() {
       ) : members.length === 0 ? (
         <Empty sentence="No members yet — members hold the API keys people call the proxy with." />
       ) : (
-        <MembersTable
-          members={members}
-          expanded={expanded}
-          onToggle={toggle}
-          onEditAllowlist={(member, key) => { ensureModels(); setAllowTarget({ member, key }); }}
-          onDeleteKey={(member, key) => setDeleteTarget({ member, key })}
-        />
+        <div className="overflow-x-auto rounded-lg bg-surface p-6">
+          <MembersTable
+            members={members}
+            expanded={expanded}
+            onToggle={toggle}
+            onEditAllowlist={(member, key) => { ensureModels(); setAllowTarget({ member, key }); }}
+            onDeleteKey={(member, key) => setDeleteTarget({ member, key })}
+          />
+        </div>
       )}
 
       <NewMemberDrawer
@@ -240,7 +242,7 @@ function NewMemberDrawer({
           className="flex flex-col gap-4"
           onSubmit={(e) => { e.preventDefault(); void submitKey(step.member); }}
         >
-          <p className="text-body text-muted">
+          <p className="text-body text-secondary">
             {step.member.displayName} created. Issue a key for them now, or close this drawer and
             do it later.
           </p>
@@ -256,7 +258,7 @@ function NewMemberDrawer({
           </Field>
           <Field label="Model allowlist (optional)">
             <ModelChecklist models={models} selected={allowlist} onChange={setAllowlist} />
-            <p className="text-body text-muted">None selected = all models.</p>
+            <p className="text-body text-secondary">None selected = all models.</p>
           </Field>
           {error !== null && <ErrorBlock error={error} />}
           <div className="flex justify-end">
@@ -314,14 +316,14 @@ function AllowlistDrawer({
         className="flex flex-col gap-4"
         onSubmit={(e) => { e.preventDefault(); void save(); }}
       >
-        <p className="text-body text-muted">
-          <span className="text-text">{target?.key.label}</span>
+        <p className="text-body text-secondary">
+          <span className="text-foreground">{target?.key.label}</span>
           {" · "}
           <span className="font-mono">{target?.key.keyPrefix}…</span>
         </p>
         <Field label="Allowed models">
           <ModelChecklist models={models} selected={selected} onChange={setSelected} />
-          <p className="text-body text-muted">None selected = all models (wildcard).</p>
+          <p className="text-body text-secondary">None selected = all models (wildcard).</p>
         </Field>
         {error !== null && <ErrorBlock error={error} />}
         <div className="flex justify-end">

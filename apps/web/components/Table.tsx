@@ -1,5 +1,5 @@
-// Table per §7: 42px rows, 1px rules inset to padding, 12px muted sentence-case headers,
-// numbers right-aligned in mono, no zebra, no header band.
+// Table per DESIGN.md: sentence-case `label` secondary headers (no band, no zebra),
+// 1px #141414 row separators, numbers right-aligned mono tabular, row hover surface.
 
 export interface Column<Row> {
   key: string;
@@ -35,7 +35,7 @@ export function Table<Row>({
             <th
               key={col.key}
               scope="col"
-              className={`pr-4 text-small font-normal text-muted last:pr-0 ${
+              className={`label pr-4 text-secondary last:pr-0 ${
                 col.align === "right" ? "text-right" : "text-left"
               }`}
             >
@@ -50,8 +50,8 @@ export function Table<Row>({
             key={rowKey(row, i)}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
             style={rowHeight ? { height: rowHeight } : undefined}
-            className={`${rowHeight ? "" : "h-[var(--row-height)] "}border-t border-rule ${
-              onRowClick ? "cursor-pointer hover:bg-raised/40" : ""
+            className={`${rowHeight ? "" : "h-[var(--row-height)] "}border-t border-border ${
+              onRowClick ? "cursor-pointer hover:bg-muted hover:text-foreground" : ""
             } ${typeof rowClassName === "string" ? rowClassName : (rowClassName?.(row) ?? "")}`}
           >
             {columns.map((col) => (

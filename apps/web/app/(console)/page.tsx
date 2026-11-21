@@ -12,10 +12,10 @@ import { ErrorBlock } from "@/components/ErrorBlock";
 import { KpiStrip, type KpiItem } from "@/components/KpiStrip";
 import { LineChart, type LinePoint } from "@/components/LineChart";
 import { PageTitle } from "@/components/PageTitle";
-import { Pill } from "@/components/Pill";
 import { RangeTabs, type RangeOption } from "@/components/RangeTabs";
 import { RequestLane } from "@/components/RequestLane";
 import { Skeleton, SkeletonRows } from "@/components/Skeleton";
+import { StatusCellDot, accountTone } from "@/components/StatusDot";
 import { Table, type Column } from "@/components/Table";
 import { requestColumns } from "@/components/requestColumns";
 import { apiFetch } from "@/lib/api";
@@ -57,11 +57,9 @@ const KPIS = [
 ] as const;
 type KpiId = (typeof KPIS)[number]["id"];
 
-function accountStatus(a: OverviewAccount): { label: string; variant: "neutral" | "warning" } {
-  if (a.cooling) return { label: "cooling down", variant: "warning" };
-  return a.enabled
-    ? { label: "active", variant: "neutral" }
-    : { label: "benched", variant: "warning" };
+function accountStatusLabel(a: OverviewAccount): string {
+  if (a.cooling) return "cooling down";
+  return a.enabled ? "active" : "benched";
 }
 
 const ACCOUNT_COLUMNS: Column<OverviewAccount>[] = [
@@ -69,15 +67,17 @@ const ACCOUNT_COLUMNS: Column<OverviewAccount>[] = [
   {
     key: "provider",
     header: "Provider",
-    render: (a) => <span className="text-muted">{a.provider}</span>,
+    render: (a) => <span className="text-secondary">{a.provider}</span>,
   },
   {
     key: "status",
     header: "Status",
-    render: (a) => {
-      const s = accountStatus(a);
-      return <Pill variant={s.variant}>{s.label}</Pill>;
-    },
+    render: (a) => (
+      <StatusCellDot
+        tone={accountTone(a.enabled ? "active" : "benched", a.cooling)}
+        label={accountStatusLabel(a)}
+      />
+    ),
   },
   {
     key: "todayRequests",
@@ -89,7 +89,7 @@ const ACCOUNT_COLUMNS: Column<OverviewAccount>[] = [
     key: "todayCostUsd",
     header: "Cost today",
     align: "right",
-    render: (a) => <span className="text-muted">{fmtCost(a.todayCostUsd)}</span>,
+    render: (a) => <span className="text-secondary">{fmtCost(a.todayCostUsd)}</span>,
   },
 ];
 
@@ -325,7 +325,7 @@ export default function OverviewPage() {
     <div className="flex flex-col" style={{ gap: "var(--gap)" }}>
       <div>
         <div className="mb-3 text-[15px] font-semibold">
-          passe<span className="text-accent">•</span>trou
+          passe<span className="text-secondary">•</span>trou
         </div>
         <PageTitle
           title="Overview"
@@ -343,14 +343,14 @@ export default function OverviewPage() {
 
       <RequestLane />
 
-      <section aria-label="Usage" className="rounded-card bg-surface p-1.5">
+      <section aria-label="Usage" className="rounded-lg bg-surface p-1.5">
         {summary.status === "error" ? (
           <ErrorBlock error={summary.error} onRetry={() => loadSummary(range)} />
         ) : summary.status === "loading" ? (
           <div className="grid grid-cols-7 max-md:grid-cols-2 max-md:gap-4">
             {KPIS.map((k) => (
               <div key={k.id} className="px-4 py-3 max-md:px-0">
-                <span className="block text-sm font-medium text-muted">&nbsp;</span>
+                <span className="block text-sm font-medium text-secondary">&nbsp;</span>
                 <Skeleton className="mt-2 h-5 w-20" />
                 <Skeleton className="mt-1.5 h-3 w-24" />
               </div>
@@ -359,11 +359,11 @@ export default function OverviewPage() {
         ) : (
           <KpiStrip items={kpis} selectedId={kpiId} onSelect={(id) => setKpiId(id as KpiId)} />
         )}
-        <div className="mt-1.5 rounded-card bg-ground p-6">
+        <div className="mt-1.5 rounded-lg bg-neutral p-6">
           <div className="mb-4 flex items-baseline gap-3">
-            <h2 className="text-base font-semibold">{kpi.label}</h2>
+            <h2 className="h2">{kpi.label}</h2>
             {"caption" in kpi && kpi.caption && (
-              <span className="text-small text-muted">{kpi.caption}</span>
+              <span className="text-small text-secondary">{kpi.caption}</span>
             )}
           </div>
           {series.status === "error" ? (
@@ -381,10 +381,10 @@ export default function OverviewPage() {
         </div>
       </section>
 
-      <section aria-label="Recent requests" className="rounded-card bg-surface p-6">
+      <section aria-label="Recent requests" className="rounded-lg bg-surface p-6">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-base font-semibold">Recent requests</h2>
-          <Link href="/requests" className="text-sm text-muted hover:text-text">
+          <h2 className="h2">Recent requests</h2>
+          <Link href="/requests" className="text-sm text-secondary hover:text-foreground">
             View all →
           </Link>
         </div>
@@ -395,14 +395,16 @@ export default function OverviewPage() {
         ) : recent.data.length === 0 ? (
           <Empty sentence="No requests yet — create a member key and call /v1/chat/completions." />
         ) : (
-          <Table columns={requestColumns()} rows={recent.data} rowKey={(r) => r.id} />
+          <div className="overflow-x-auto">
+            <Table columns={requestColumns()} rows={recent.data} rowKey={(r) => r.id} />
+          </div>
         )}
       </section>
 
-      <section aria-label="Accounts" className="rounded-card bg-surface p-6">
+      <section aria-label="Accounts" className="rounded-lg bg-surface p-6">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-base font-semibold">Accounts</h2>
-          <Link href="/providers" className="text-sm text-muted hover:text-text">
+          <h2 className="h2">Accounts</h2>
+          <Link href="/providers" className="text-sm text-secondary hover:text-foreground">
             View all →
           </Link>
         </div>
@@ -420,20 +422,20 @@ export default function OverviewPage() {
       {!setupDone && overview.status === "ok" && (
         <section
           aria-label="Getting started"
-          className="grid grid-cols-4 divide-x divide-rule rounded-card bg-surface max-md:grid-cols-2 max-md:divide-x-0"
+          className="grid grid-cols-4 divide-x divide-border rounded-lg bg-surface max-md:grid-cols-2 max-md:divide-x-0"
         >
           {steps.map((s, i) => (
             <div key={s.title} className="relative p-4">
               {!s.done && (
-                <span aria-hidden="true" className="absolute right-4 top-4 text-sm text-muted">
+                <span aria-hidden="true" className="absolute right-4 top-4 text-sm text-secondary">
                   →
                 </span>
               )}
-              <p className={`text-sm font-medium ${s.done ? "text-muted line-through" : "text-text"}`}>
-                <span className="mr-1 font-mono text-muted">{i + 1}.</span>
+              <p className={`text-sm font-medium ${s.done ? "text-secondary line-through" : "text-foreground"}`}>
+                <span className="mr-1 font-mono text-secondary">{i + 1}.</span>
                 {s.title}
               </p>
-              <p className="mt-1 text-body text-muted">{s.done ? "Done" : GETTING_STARTED_HINTS[i]}</p>
+              <p className="mt-1 text-body text-secondary">{s.done ? "Done" : GETTING_STARTED_HINTS[i]}</p>
             </div>
           ))}
         </section>

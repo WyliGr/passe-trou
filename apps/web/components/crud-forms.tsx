@@ -1,7 +1,7 @@
 "use client";
 
-// Shared CRUD form atoms (W16): labelled field, primary creation control (outlined, the
-// 1px accent line under its label), drawer buttons, typed-confirm delete drawer.
+// Shared CRUD form atoms (W16): labelled field, the page's one primary creation
+// control, secondary drawer buttons, typed-confirm delete drawer.
 
 import { useEffect, useState } from "react";
 import { Drawer } from "@/components/Drawer";
@@ -9,13 +9,14 @@ import { ErrorBlock } from "@/components/ErrorBlock";
 import { IconChevron } from "@/components/icons";
 
 export const inputCls =
-  "h-[38px] w-full rounded-card border border-control bg-surface px-3 text-body text-text outline-none focus:border-muted";
+  "h-[38px] w-full rounded-md border border-border bg-surface px-3 text-body text-foreground outline-none focus:border-primary";
 
+/** button-secondary: muted fill, foreground text, hover border-tone fill. */
 export const btnCls =
-  "h-[var(--control-height)] flex-none rounded-control border border-control px-4 text-sm text-text hover:border-muted disabled:cursor-not-allowed disabled:border-rule disabled:text-muted disabled:hover:border-rule";
+  "h-[var(--control-height)] flex-none rounded-md bg-muted px-4 text-sm text-foreground hover:bg-border disabled:cursor-not-allowed disabled:text-secondary disabled:hover:bg-muted";
 
 export const dangerBtnCls =
-  "h-[var(--control-height)] flex-none rounded-control border border-negative px-4 text-sm text-negative hover:border-negative disabled:cursor-not-allowed disabled:border-rule disabled:text-muted";
+  "h-[var(--control-height)] flex-none rounded-md bg-error-surface px-4 text-sm text-error hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-50";
 
 /** Label above the field (app-screens.md §8.1): 14px at 500, 8px gap, hint muted under. */
 export function Field({
@@ -31,12 +32,12 @@ export function Field({
     <div className="flex flex-col gap-2">
       <span className="text-sm font-medium">{label}</span>
       {children}
-      {hint && <p className="text-body text-muted">{hint}</p>}
+      {hint && <p className="text-body text-secondary">{hint}</p>}
     </div>
   );
 }
 
-/** The one creation control per page: outlined, with the 1px accent line exactly under its label. */
+/** The one primary control per page (button-primary). */
 export function CreateButton({
   children,
   onClick,
@@ -48,12 +49,9 @@ export function CreateButton({
     <button
       type="button"
       onClick={onClick}
-      className="h-[var(--control-height)] rounded-control border border-control px-4 text-sm text-text hover:border-muted"
+      className="h-[var(--control-height)] rounded-md bg-primary px-4 text-sm font-medium text-white hover:bg-primary-hover active:bg-primary-strong"
     >
-      <span className="flex flex-col items-center gap-[3px]">
-        <span>{children}</span>
-        <span aria-hidden="true" className="h-px w-full bg-accent" />
-      </span>
+      {children}
     </button>
   );
 }
@@ -109,7 +107,7 @@ export function ConfirmDeleteDrawer({
   return (
     <Drawer open={open} onClose={onClose} title={title}>
       <div className="flex flex-col gap-4">
-        <p className="text-body text-muted">{consequence}</p>
+        <p className="text-body text-secondary">{consequence}</p>
         <Field label={`Type ${objectName} to confirm`}>
           <input
             className={inputCls}
@@ -140,7 +138,7 @@ export function ExpandChevron({ open }: { open: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`inline-flex text-muted transition-transform ${open ? "rotate-90" : ""}`}
+      className={`inline-flex text-secondary transition-transform ${open ? "rotate-90" : ""}`}
     >
       <IconChevron />
     </span>

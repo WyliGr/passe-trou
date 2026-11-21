@@ -1,7 +1,6 @@
 "use client";
 
-// Dropdown marked by the style's 1px accent line exactly as wide as the current value
-// (never a fill or a pill). Used bare in panel headers, and composed into the
+// Dropdown on a quiet 1px border-bottom. Used bare in panel headers, and composed into the
 // "Group by · x ▾" sentence control on Analytics.
 
 export interface SelectOption {
@@ -21,12 +20,12 @@ export function UnderlineSelect<T extends string>({
   ariaLabel?: string;
 }) {
   return (
-    <span className="relative inline-flex items-center pb-[3px]">
+    <span className="relative inline-flex items-center border-b border-border pb-[3px]">
       <select
         aria-label={ariaLabel}
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="cursor-pointer appearance-none bg-transparent pr-4 text-body text-text outline-none [&>option]:bg-ground"
+        className="cursor-pointer appearance-none bg-transparent pr-4 text-body text-foreground outline-none [&>option]:bg-neutral"
       >
         {options.map((o) => (
           <option key={o.id} value={o.id}>
@@ -36,11 +35,10 @@ export function UnderlineSelect<T extends string>({
       </select>
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute right-0 top-1/2 -translate-y-[70%] text-[10px] text-muted"
+        className="pointer-events-none absolute right-0 top-1/2 -translate-y-[70%] text-[10px] text-secondary"
       >
         ▾
       </span>
-      <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-accent" />
     </span>
   );
 }

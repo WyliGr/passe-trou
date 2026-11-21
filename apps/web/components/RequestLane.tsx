@@ -32,9 +32,9 @@ function laneStatus(s: string): LaneEvent["status"] {
 }
 
 function dotFill(status: LaneEvent["status"]): { fill: string; opacity?: number } {
-  if (status === "error") return { fill: "var(--pill-negative-ink)" };
-  if (status === "aborted") return { fill: "var(--pill-warning-ink)" };
-  return { fill: "var(--chart-1)", opacity: 0.4 };
+  if (status === "error") return { fill: "var(--color-error)" };
+  if (status === "aborted") return { fill: "var(--color-warning)" };
+  return { fill: "var(--color-primary)", opacity: 0.4 };
 }
 
 type Backfill =
@@ -136,12 +136,11 @@ export function RequestLane({
     feedState === "live" ? "live" : feedState === "connecting" ? "connecting…" : "reconnecting…";
 
   return (
-    <section aria-label="Request lane, last 60 minutes" className="rounded-card bg-surface p-6">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-semibold">Request lane</h2>
-        <span className="flex items-center gap-1.5 text-small text-muted">
+    <section aria-label="Request lane, last 60 minutes" className="rounded-lg bg-surface p-6">      <div className="mb-3 flex items-center justify-between">
+        <h2 className="h2">Request lane</h2>
+        <span className="flex items-center gap-1.5 text-small text-secondary">
           {feedState === "live" && (
-            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
           )}
           {stateLabel}
         </span>
@@ -167,7 +166,7 @@ export function RequestLane({
                   x2={width}
                   y1={stripHeight + 4}
                   y2={stripHeight + 4}
-                  stroke="var(--rule)"
+                  stroke="var(--color-border)"
                   strokeWidth="1"
                 />
                 {placed.map((e) => {
@@ -186,7 +185,7 @@ export function RequestLane({
                 })}
               </svg>
             )}
-            <div className="mt-1 flex justify-between font-mono text-small text-muted">
+            <div className="mt-1 flex justify-between font-mono text-small text-secondary">
               <span>-60m</span>
               <span>-30m</span>
               <span>now</span>

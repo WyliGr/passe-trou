@@ -10,11 +10,11 @@ import type { Column } from "@/components/Table";
 import type { RequestRow } from "@/lib/requests";
 import { fmtCost, fmtInt, fmtMs, fmtRel } from "@/lib/format";
 
-const dash = <span className="text-muted">–</span>;
+const dash = <span className="text-secondary">–</span>;
 
 export function StatusCell({ row }: { row: Pick<RequestRow, "status"> }) {
-  if (row.status === "ok") return <span className="text-muted">ok</span>;
-  if (row.status === "error") return <Pill variant="negative">error</Pill>;
+  if (row.status === "ok") return <span className="text-secondary">ok</span>;
+  if (row.status === "error") return <Pill variant="error">error</Pill>;
   return <Pill variant="warning">aborted</Pill>;
 }
 
@@ -22,9 +22,9 @@ export function memberKeyCell(row: Pick<RequestRow, "member" | "key">) {
   if (!row.member && !row.key) return dash;
   return (
     <>
-      {row.member ? row.member.name : <span className="text-muted">–</span>}
-      <span className="text-muted"> · </span>
-      {row.key ? <span className="font-mono">{row.key.prefix}</span> : <span className="text-muted">–</span>}
+      {row.member ? row.member.name : <span className="text-secondary">–</span>}
+      <span className="text-secondary"> · </span>
+      {row.key ? <span className="font-mono">{row.key.prefix}</span> : <span className="text-secondary">–</span>}
     </>
   );
 }
@@ -44,7 +44,7 @@ export function requestColumns(opts: RequestColumnOptions = {}): Column<RequestR
       header: "When",
       mono: true,
       render: (r) => (
-        <span className="text-muted" title={r.ts}>
+        <span className="text-secondary" title={r.ts}>
           {fmtRel(r.ts, opts.now)}
         </span>
       ),
@@ -63,7 +63,7 @@ export function requestColumns(opts: RequestColumnOptions = {}): Column<RequestR
     cols.push({
       key: "wireFormat",
       header: "Wire",
-      render: (r) => <span className="text-muted">{r.wireFormat}</span>,
+      render: (r) => <span className="text-secondary">{r.wireFormat}</span>,
     });
   }
   cols.push(
@@ -91,7 +91,7 @@ export function requestColumns(opts: RequestColumnOptions = {}): Column<RequestR
     key: "costUsd",
     header: "Cost",
     align: "right",
-    render: (r) => (r.costUsd === null ? dash : <span className="text-muted">{fmtCost(r.costUsd)}</span>),
+    render: (r) => (r.costUsd === null ? dash : <span className="text-secondary">{fmtCost(r.costUsd)}</span>),
   });
   return cols;
 }

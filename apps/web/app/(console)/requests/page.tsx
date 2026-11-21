@@ -71,7 +71,7 @@ function feedToRow(f: FeedRow, cache: LabelCache): RequestRow {
   };
 }
 
-/** 28px outlined compound filter control: « Label · value » as one pill. */
+/** Compact full-round filter chip (DESIGN.md chip): muted fill, no border. */
 function FilterPill({
   label,
   children,
@@ -80,16 +80,16 @@ function FilterPill({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-[28px] items-center divide-x divide-control rounded-control border border-control text-small">
-      <span className="px-3 text-muted">{label}</span>
-      <div className="flex h-full items-center px-2">{children}</div>
+    <div className="flex h-[28px] items-center divide-x divide-border rounded-full bg-muted text-small">
+      <span className="px-3 text-secondary">{label}</span>
+      <div className="flex h-full items-center px-2.5">{children}</div>
     </div>
   );
 }
 
 const selectClass =
-  "h-full appearance-none bg-transparent pr-4 text-text outline-none [&>option]:bg-raised";
-const selectChevron = <span className="pointer-events-none -ml-3 text-muted">▾</span>;
+  "h-full appearance-none bg-transparent pr-4 text-foreground outline-none [&>option]:bg-neutral";
+const selectChevron = <span className="pointer-events-none -ml-3 text-secondary">▾</span>;
 
 export default function RequestsPage() {
   const [draft, setDraft] = useState<RequestFilters>(DEFAULT_FILTERS);
@@ -248,7 +248,7 @@ export default function RequestsPage() {
         actions={
           <div className="flex items-center gap-3">
             {live && feedState !== "live" && (
-              <span className="text-small text-muted">
+              <span className="text-small text-secondary">
                 {feedState === "connecting" ? "connecting…" : "reconnecting…"}
               </span>
             )}
@@ -257,14 +257,11 @@ export default function RequestsPage() {
               role="switch"
               aria-checked={live}
               onClick={() => setLive((v) => !v)}
-              className={`relative flex h-[var(--control-height)] items-center text-body ${
-                live ? "text-text" : "text-muted hover:text-text"
+              className={`flex h-[var(--control-height)] items-center text-body ${
+                live ? "text-foreground" : "text-secondary hover:text-foreground"
               }`}
             >
               Live
-              {live && (
-                <span aria-hidden="true" className="absolute inset-x-0 -bottom-px h-px bg-accent" />
-              )}
             </button>
           </div>
         }
@@ -309,7 +306,7 @@ export default function RequestsPage() {
             min={0}
             step={50}
             placeholder="—"
-            className="w-16 bg-transparent font-mono text-text outline-none placeholder:text-muted"
+            className="w-16 bg-transparent font-mono text-foreground outline-none placeholder:text-secondary"
             value={draft.minLatencyMs ?? ""}
             onChange={(e) =>
               setDraft({
@@ -321,32 +318,29 @@ export default function RequestsPage() {
               if (e.key === "Enter") applyDraft();
             }}
           />
-          <span className="text-muted">ms</span>
+          <span className="text-secondary">ms</span>
         </FilterPill>
         <button
           type="button"
           role="switch"
           aria-checked={draft.streamedOnly}
           onClick={() => setDraft({ ...draft, streamedOnly: !draft.streamedOnly })}
-          className={`relative flex h-[28px] items-center rounded-control border border-control px-3 text-small ${
-            draft.streamedOnly ? "text-text" : "text-muted hover:text-text"
+          className={`h-[28px] rounded-full bg-muted px-3 text-small ${
+            draft.streamedOnly ? "text-foreground" : "text-secondary hover:text-foreground"
           }`}
         >
           streamed only
-          {draft.streamedOnly && (
-            <span aria-hidden="true" className="absolute inset-x-3 -bottom-px h-px bg-accent" />
-          )}
         </button>
         <button
           type="button"
           onClick={applyDraft}
-          className="h-[28px] rounded-control border border-control px-3 text-small text-text hover:border-muted"
+          className="h-[28px] rounded-md bg-muted px-3 text-small text-foreground hover:bg-border"
         >
           Apply
         </button>
       </div>
 
-      <section aria-label="Request log" className="rounded-card bg-surface p-6 pt-4">
+      <section aria-label="Request log" className="rounded-lg bg-surface p-6 pt-4">
         {table.status === "error" ? (
           <ErrorBlock error={table.error} onRetry={() => load(applied)} />
         ) : table.status === "loading" ? (
@@ -355,25 +349,27 @@ export default function RequestsPage() {
           <Empty sentence="No requests match — widen the filters or send traffic to the proxy." />
         ) : (
           <>
-            <Table
-              columns={columns}
-              rows={rows}
-              rowKey={(r) => r.id}
-              onRowClick={setDrawerRow}
-              rowClassName={(r) => (freshIds.has(r.id) ? "row-in" : "")}
-            />
+            <div className="overflow-x-auto">
+              <Table
+                columns={columns}
+                rows={rows}
+                rowKey={(r) => r.id}
+                onRowClick={setDrawerRow}
+                rowClassName={(r) => (freshIds.has(r.id) ? "row-in" : "")}
+              />
+            </div>
             <div className="mt-4 flex justify-center">
               {nextCursor ? (
                 <button
                   type="button"
                   onClick={() => void loadEarlier()}
                   disabled={paging}
-                  className="h-[28px] rounded-control border border-control px-3 text-small text-text hover:border-muted disabled:text-muted"
+                  className="h-[28px] rounded-md bg-muted px-3 text-small text-foreground hover:bg-border disabled:text-secondary"
                 >
                   {paging ? "Loading…" : "Load earlier"}
                 </button>
               ) : rows.length > 0 ? (
-                <p className="text-small text-muted">{"that's everything"}</p>
+                <p className="text-small text-secondary">{"that's everything"}</p>
               ) : null}
             </div>
           </>
