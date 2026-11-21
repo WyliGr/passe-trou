@@ -25,9 +25,11 @@ export interface SessionUser {
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, init);
   if (res.status === 401) {
-    const onAuthEndpoint = path.startsWith("/auth/");
+    // Only the credential-submit endpoints handle their own 401s; everything
+    // else (expired/revoked session, stale cookie) means "back to login".
+    const credentialSubmit = path === "/auth/login" || path === "/auth/register";
     if (
-      !onAuthEndpoint &&
+      !credentialSubmit &&
       typeof window !== "undefined" &&
       window.location.pathname !== "/login" &&
       window.location.pathname !== "/register"

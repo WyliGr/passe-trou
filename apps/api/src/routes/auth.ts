@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { z } from "zod";
 import { adminAuth, SESSION_COOKIE } from "../admin/middleware.ts";
 import { ApiError, type AppDeps } from "../app.ts";
@@ -33,16 +34,28 @@ async function parseJson(c: { req: { json: () => Promise<unknown> } }): Promise<
   }
 }
 
-function secureFlag(): string {
-  return process.env.NODE_ENV === "production" ? "; Secure" : "";
+// Secure only when the request itself came over https: the product ships
+// plain-HTTP on the LAN (compose sets NODE_ENV=production without TLS), so a
+// NODE_ENV-driven flag would make browsers drop the cookie and loop logins.
+function secureFlag(c: Context): string {
+  return new URL(c.req.url).protocol === "https:" ? "; Secure" : "";
 }
 
-function sessionCookie(token: string): string {
-  return `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; Max-Age=${SESSION_TTL_MS / 1000}; SameSite=Lax${secureFlag()}`;
+function sessionCookie(c: Context, token: string): string {
+  return `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; Max-Age=${SESSION_TTL_MS / 1000}; SameSite=Lax${secureFlag(c)}`;
 }
 
-function expiredCookie(): string {
-  return `${SESSION_COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${secureFlag()}`;
+function expiredCookie(c: Context): string {
+  return `${SESSION_COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${secureFlag(c)}`;
+}
+
+/** Prisma unique-violation error without depending on generated error classes. */
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: unknown }).code === "P2002"
+  );
 }
 
 export function authRouter(deps: AppDeps) {
@@ -59,16 +72,25 @@ export function authRouter(deps: AppDeps) {
       throw new ApiError(403, "registration_closed", "an account already exists");
     }
     const body = registerSchema.parse(await parseJson(c));
-    const user = await deps.db.user.create({
-      data: {
-        email: body.email,
-        name: body.name,
-        passwordHash: hashPassword(body.password),
-        role: "admin",
-      },
-    });
+    let user: User;
+    try {
+      user = await deps.db.user.create({
+        data: {
+          email: body.email,
+          name: body.name,
+          passwordHash: hashPassword(body.password),
+          role: "admin",
+        },
+      });
+    } catch (err) {
+      // Lost first-boot race: the count check passed but a concurrent register won.
+      if (isUniqueViolation(err)) {
+        throw new ApiError(403, "registration_closed", "an account already exists");
+      }
+      throw err;
+    }
     const token = await createSession(deps.db, user.id);
-    c.header("Set-Cookie", sessionCookie(token));
+    c.header("Set-Cookie", sessionCookie(c, token));
     return c.json({ user: publicUser(user), token }, 201);
   });
 
@@ -80,7 +102,7 @@ export function authRouter(deps: AppDeps) {
       throw new ApiError(401, "invalid_credentials", "invalid email or password");
     }
     const token = await createSession(deps.db, user.id);
-    c.header("Set-Cookie", sessionCookie(token));
+    c.header("Set-Cookie", sessionCookie(c, token));
     return c.json({ user: publicUser(user), token });
   });
 
@@ -93,7 +115,7 @@ export function authRouter(deps: AppDeps) {
 
   r.post("/logout", async (c) => {
     await destroySession(deps.db, c.get("sessionToken"));
-    c.header("Set-Cookie", expiredCookie());
+    c.header("Set-Cookie", expiredCookie(c));
     return c.body(null, 204);
   });
 

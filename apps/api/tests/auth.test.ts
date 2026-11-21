@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Db } from "../src/db.ts";
 import { createTestUser, db, testApp, TEST_PASSWORD } from "./setup.ts";
 
 const GOOD = { email: "owner@example.com", name: "Owner", password: "correct-horse-9" };
@@ -58,6 +59,45 @@ describe("POST /auth/register", () => {
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe(
       "registration_closed",
     );
+  });
+
+  it("maps a lost first-boot race (email unique violation) to 403 registration_closed", async () => {
+    // Simulate the count-then-create race: count says open, create hits the
+    // unique email constraint (Prisma P2002).
+    const racingDb = {
+      user: {
+        count: async () => 0,
+        create: async () => {
+          throw Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+        },
+      },
+    } as unknown as Db;
+    const res = await testApp({ db: racingDb }).request("http://localhost/auth/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(GOOD),
+    });
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe(
+      "registration_closed",
+    );
+  });
+
+  it("sets the Secure cookie flag only over https", async () => {
+    const httpsRes = await testApp().request("https://localhost/auth/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(GOOD),
+    });
+    expect(httpsRes.status).toBe(201);
+    expect(httpsRes.headers.get("set-cookie") ?? "").toContain("; Secure");
+
+    const httpRes = await postJson("/auth/register", { ...GOOD, email: "second@example.com" });
+    // Register is closed now (one account exists) — use login for the http case.
+    expect(httpRes.status).toBe(403);
+    const loginRes = await postJson("/auth/login", { email: GOOD.email, password: GOOD.password });
+    expect(loginRes.status).toBe(200);
+    expect(loginRes.headers.get("set-cookie") ?? "").not.toContain("Secure");
   });
 
   it("rejects a malformed email", async () => {
