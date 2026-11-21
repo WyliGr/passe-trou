@@ -1,31 +1,36 @@
 "use client";
 
-// /login — centered 400px column: brand •, an Admin token password field, one primary submit.
+// /login — centered 400px column: brand •, email + password fields, one primary
+// submit. First boot (no account yet) adds a link to /register.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiFetch, setToken } from "@/lib/api";
+import { authStatus, login } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [token, setTokenValue] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    authStatus()
+      .then((s) => setOpen(s.open))
+      .catch(() => {});
+  }, []);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const candidate = token.trim();
-    if (!candidate || pending) return;
+    if (pending) return;
     setPending(true);
     setError(null);
-    // Validate against the cheapest admin route before storing the token.
     try {
-      window.localStorage.setItem("pt_admin_token", candidate);
-      await apiFetch("/admin/overview");
-      setToken(candidate);
+      await login(email.trim(), password);
       router.replace("/");
     } catch (err) {
-      window.localStorage.removeItem("pt_admin_token");
       setError(err instanceof Error ? err.message : "request failed");
       setPending(false);
     }
@@ -43,16 +48,27 @@ export default function LoginPage() {
           </span>
         </div>
         <form onSubmit={submit} className="flex flex-col">
-          <label htmlFor="admin-token" className="mb-2 text-sm font-medium">
-            Admin token
+          <label htmlFor="email" className="mb-2 text-sm font-medium">
+            Email
           </label>
           <input
-            id="admin-token"
+            id="email"
+            type="email"
+            autoComplete="email"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="h-10 rounded-card border border-control bg-transparent px-3 text-text outline-none focus:border-accent"
+          />
+          <label htmlFor="password" className="mt-4 mb-2 text-sm font-medium">
+            Password
+          </label>
+          <input
+            id="password"
             type="password"
             autoComplete="current-password"
-            autoFocus
-            value={token}
-            onChange={(e) => setTokenValue(e.target.value)}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             className="h-10 rounded-card border border-control bg-transparent px-3 text-text outline-none focus:border-accent"
           />
           {error && (
@@ -62,12 +78,19 @@ export default function LoginPage() {
           )}
           <button
             type="submit"
-            disabled={pending || token.trim() === ""}
+            disabled={pending || email.trim() === "" || password === ""}
             className="mt-6 h-[var(--control-height)] rounded-control bg-text px-4 text-sm font-medium text-ground disabled:opacity-50"
           >
-            {pending ? "Checking…" : "Sign in"}
+            {pending ? "Signing in…" : "Sign in"}
           </button>
         </form>
+        {open && (
+          <p className="mt-4 text-center text-small">
+            <Link href="/register" className="text-muted underline hover:text-text">
+              First boot — create the admin account
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );
