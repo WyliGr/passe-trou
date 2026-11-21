@@ -28,7 +28,6 @@ services:
       HOST: 0.0.0.0
       PORT: "8477"
       NODE_ENV: production
-      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env}
       ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY:?set ENCRYPTION_MASTER_KEY in .env}
     # uncomment to expose the raw API (dev only — production traffic goes through the web proxy)
     # ports:

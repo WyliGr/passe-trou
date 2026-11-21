@@ -16,6 +16,11 @@ RUN="smoke-$RANDOM-$(( $(date +%s) % 100000 ))"
 APP_PID=""; MOCK_PID=""
 PROVIDER_ID=""; ACCOUNT_ID=""; MODEL_ID=""; MAPPING_ID=""; MEMBER_ID=""; KEY_ID=""
 PRICES_ORIG=""
+# Console session (register on first boot, else login with the same smoke creds).
+SMOKE_EMAIL="${SMOKE_ADMIN_EMAIL:-smoke-admin@local}"
+SMOKE_PASSWORD="${SMOKE_ADMIN_PASSWORD:-smoke-admin-password}"
+REGISTERED=""
+SESSION=""
 
 die() {
   echo "SMOKE FAIL: $*" >&2
@@ -29,15 +34,11 @@ ok() { echo "ok $1 — $2"; }
 envfile_val() { grep -E "^$1=" "$API/.env" 2>/dev/null | tail -n 1 | cut -d= -f2- || true; }
 DATABASE_URL="${DATABASE_URL:-$(envfile_val DATABASE_URL)}"
 [ -n "$DATABASE_URL" ] || die "DATABASE_URL required (env or apps/api/.env)"
-ADMIN_TOKEN="${ADMIN_TOKEN:-$(envfile_val ADMIN_TOKEN)}"
-if [ -z "$ADMIN_TOKEN" ]; then
-  ADMIN_TOKEN="$(node -e 'console.log("smoke-admin-"+crypto.randomBytes(24).toString("hex"))')"
-fi
 ENCRYPTION_MASTER_KEY="${ENCRYPTION_MASTER_KEY:-$(envfile_val ENCRYPTION_MASTER_KEY)}"
 if [ -z "$ENCRYPTION_MASTER_KEY" ]; then
   ENCRYPTION_MASTER_KEY="$(node -e 'console.log(crypto.randomBytes(32).toString("hex"))')"
 fi
-export DATABASE_URL ADMIN_TOKEN ENCRYPTION_MASTER_KEY
+export DATABASE_URL ENCRYPTION_MASTER_KEY SMOKE_EMAIL
 
 command -v node >/dev/null || die "node not found"
 command -v npx >/dev/null || die "npx not found"
@@ -52,14 +53,25 @@ cleanup() {
   if [ -n "$BASE" ] && [ -n "${PROVIDER_ID:-}" ]; then
     # Best-effort: restore the price table and drop the entities we created.
     [ -n "$PRICES_ORIG" ] && curl -s --max-time 5 -o /dev/null -X PUT "$BASE/admin/prices" \
-      -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' \
+      -H "Authorization: Bearer $SESSION" -H 'content-type: application/json' \
       -d "{\"prices\":$PRICES_ORIG}" || true
     for pair in "keys:$KEY_ID" "members:$MEMBER_ID" "mappings:$MAPPING_ID" "models:$MODEL_ID" "accounts:$ACCOUNT_ID" "providers:$PROVIDER_ID"; do
       id="${pair#*:}"; res="${pair%%:*}"
       [ -n "$id" ] && curl -s --max-time 5 -o /dev/null -X DELETE "$BASE/admin/$res/$id" \
-        -H "Authorization: Bearer $ADMIN_TOKEN" || true
+        -H "Authorization: Bearer $SESSION" || true
     done
   fi
+  # Drop the smoke user we registered (sessions cascade), so the DB returns to first-boot.
+  if [ -n "$REGISTERED" ]; then
+    (cd "$API" && node --import tsx -e 'import("./src/db.ts").then(async (m) => {
+      const db = m.createPrismaClient(process.env.DATABASE_URL);
+      await db.user.deleteMany({ where: { email: process.env.SMOKE_EMAIL } });
+      await db.$disconnect();
+    })' ) >/dev/null 2>&1 || true
+  fi
+  # Revoke the login session (no-op if the user row is already gone).
+  [ -n "$SESSION" ] && curl -s --max-time 5 -o /dev/null -X POST "$BASE/auth/logout" \
+    -H "Authorization: Bearer $SESSION" || true
   [ -n "$APP_PID" ] && kill "$APP_PID" 2>/dev/null || true
   [ -n "$MOCK_PID" ] && kill "$MOCK_PID" 2>/dev/null || true
   sleep 0.3
@@ -128,64 +140,77 @@ req 200 GET /healthz
 echo "$BODY" | json_get ok >/dev/null || die "healthz body unexpected: $BODY"
 ok 2 "healthz on :$PORT"
 
-# --- 3. admin gate closed without the token ---------------------------------
+# --- 3. console auth: register on first boot, else login ---------------------
+req 200 GET /auth/status
+if [ "$(echo "$BODY" | json_get open)" = "true" ]; then
+  req 201 POST /auth/register \
+    "{\"email\":\"$SMOKE_EMAIL\",\"name\":\"Smoke Admin\",\"password\":\"$SMOKE_PASSWORD\"}"
+  REGISTERED=1
+else
+  req 200 POST /auth/login "{\"email\":\"$SMOKE_EMAIL\",\"password\":\"$SMOKE_PASSWORD\"}"
+  # (on 401, req's die prints the body — set SMOKE_ADMIN_EMAIL/PASSWORD to an existing account)
+fi
+SESSION="$(echo "$BODY" | json_get token)" || die "no session token in auth response"
+ok 3 "console session via ${REGISTERED:+register}${REGISTERED:-login}"
+
+# --- 4. admin gate closed without the session --------------------------------
 req 401 GET /admin/providers
 echo "$BODY" | json_get error.code | grep -q '^unauthorized$' || die "401 body unexpected: $BODY"
-ok 3 "admin without token → 401 unauthorized"
+ok 4 "admin without session → 401 unauthorized"
 
-# --- 4. seed presets (idempotent) -------------------------------------------
+# --- 5. seed presets (idempotent) -------------------------------------------
 (cd "$API" && npx prisma db seed) >"$TMP/seed.log" 2>&1 || die "prisma db seed failed: $(tail -n 5 "$TMP/seed.log")"
-req 200 GET /admin/providers "" "$ADMIN_TOKEN"
+req 200 GET /admin/providers "" "$SESSION"
 echo "$BODY" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
   const names=JSON.parse(s).map(p=>p.displayName);
   if(!names.includes("CommandCode")||!names.includes("Mistral")) process.exit(1);
 })' || die "seeded providers missing: $BODY"
-req 200 GET /admin/members "" "$ADMIN_TOKEN"
+req 200 GET /admin/members "" "$SESSION"
 echo "$BODY" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
   if(!JSON.parse(s).some(m=>m.displayName==="Will")) process.exit(1);
 })' || die "seeded member Will missing: $BODY"
-ok 4 "seed: CommandCode + Mistral + member Will"
+ok 5 "seed: CommandCode + Mistral + member Will"
 
-# --- 5. wire the mock pool: provider, account, credential, model, mapping ---
-req 201 POST /admin/providers "{\"displayName\":\"Smoke Mock $RUN\",\"type\":\"openai-compatible\",\"baseUrl\":\"$MOCK_URL\"}" "$ADMIN_TOKEN"
+# --- 6. wire the mock pool: provider, account, credential, model, mapping ---
+req 201 POST /admin/providers "{\"displayName\":\"Smoke Mock $RUN\",\"type\":\"openai-compatible\",\"baseUrl\":\"$MOCK_URL\"}" "$SESSION"
 PROVIDER_ID="$(echo "$BODY" | json_get id)" || die "no provider id"
-req 201 POST "/admin/providers/$PROVIDER_ID/accounts" "{\"displayName\":\"smoke-acc-$RUN\"}" "$ADMIN_TOKEN"
+req 201 POST "/admin/providers/$PROVIDER_ID/accounts" "{\"displayName\":\"smoke-acc-$RUN\"}" "$SESSION"
 ACCOUNT_ID="$(echo "$BODY" | json_get id)" || die "no account id"
-req 200 POST "/admin/accounts/$ACCOUNT_ID/credential" '{"apiKey":"sk-smoke-0000000000000000"}' "$ADMIN_TOKEN"
+req 200 POST "/admin/accounts/$ACCOUNT_ID/credential" '{"apiKey":"sk-smoke-0000000000000000"}' "$SESSION"
 echo "$BODY" | json_get ok | grep -q '^true$' || die "credential upsert failed: $BODY"
-req 201 POST /admin/models "{\"displayName\":\"smoke-model-$RUN\"}" "$ADMIN_TOKEN"
+req 201 POST /admin/models "{\"displayName\":\"smoke-model-$RUN\"}" "$SESSION"
 MODEL_ID="$(echo "$BODY" | json_get id)" || die "no model id"
-req 201 POST "/admin/models/$MODEL_ID/mappings" "{\"accountId\":\"$ACCOUNT_ID\",\"upstreamModel\":\"smoke-upstream-x\"}" "$ADMIN_TOKEN"
+req 201 POST "/admin/models/$MODEL_ID/mappings" "{\"accountId\":\"$ACCOUNT_ID\",\"upstreamModel\":\"smoke-upstream-x\"}" "$SESSION"
 MAPPING_ID="$(echo "$BODY" | json_get id)" || die "no mapping id"
-req 201 POST /admin/members "{\"displayName\":\"Smoke Human $RUN\"}" "$ADMIN_TOKEN"
+req 201 POST /admin/members "{\"displayName\":\"Smoke Human $RUN\"}" "$SESSION"
 MEMBER_ID="$(echo "$BODY" | json_get id)" || die "no member id"
-req 201 POST "/admin/members/$MEMBER_ID/keys" '{"label":"smoke-agent"}' "$ADMIN_TOKEN"
+req 201 POST "/admin/members/$MEMBER_ID/keys" '{"label":"smoke-agent"}' "$SESSION"
 KEY_ID="$(echo "$BODY" | json_get id)" || die "no key id"
 PT_TOKEN="$(echo "$BODY" | json_get token)" || die "no plaintext key in creation response"
 case "$PT_TOKEN" in pt_*) ;; *) die "key token shape unexpected";; esac
 # Price the smoke upstream model (merge into the existing table; restored on exit).
-req 200 GET /admin/prices "" "$ADMIN_TOKEN"
+req 200 GET /admin/prices "" "$SESSION"
 PRICES_ORIG="$BODY"
 PRICES_NEW="$(node -e 'const p=JSON.parse(process.argv[1]);p.push(JSON.parse(process.argv[2]));console.log(JSON.stringify({prices:p}))' \
   "$PRICES_ORIG" "{\"scope\":\"provider\",\"providerId\":\"$PROVIDER_ID\",\"modelMatcher\":\"smoke-upstream-x\",\"priceInput\":1,\"priceOutput\":2}")"
-req 200 PUT /admin/prices "$PRICES_NEW" "$ADMIN_TOKEN"
-ok 5 "pool wired: provider/account/credential/model/mapping/member/key + price"
+req 200 PUT /admin/prices "$PRICES_NEW" "$SESSION"
+ok 6 "pool wired: provider/account/credential/model/mapping/member/key + price"
 
-# --- 6. proxied streamed request through the mock ----------------------------
+# --- 7. proxied streamed request through the mock ----------------------------
 curl -sN --max-time 15 -o "$TMP/stream.out" -X POST "$BASE/v1/chat/completions" \
   -H "Authorization: Bearer $PT_TOKEN" -H 'content-type: application/json' \
   -d "{\"model\":\"smoke-model-$RUN\",\"stream\":true,\"stream_options\":{\"include_usage\":true},\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" \
   || die "proxied request curl failed"
 grep -q 'Bonjour' "$TMP/stream.out" || die "stream body missing content: $(cat "$TMP/stream.out")"
 grep -q '"usage"' "$TMP/stream.out" || die "stream body missing usage chunk (client asked via stream_options)"
-ok 6 "streamed chat completion via mock upstream"
+ok 7 "streamed chat completion via mock upstream"
 
-# --- 7. /admin/overview reflects the row + cost ------------------------------
+# --- 8. /admin/overview reflects the row + cost ------------------------------
 # capture is fire-and-forget: poll until the row lands.
 EXPECT_COST="0.001152" # 1024 in @ $1 + 64 out @ $2 per 1M tokens
 SEEN=""
 for _ in $(seq 1 100); do
-  req 200 GET /admin/overview "" "$ADMIN_TOKEN"
+  req 200 GET /admin/overview "" "$SESSION"
   if echo "$BODY" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
     const o=JSON.parse(s);
     const row=o.accounts.find(a=>a.id===process.argv[1]);
@@ -209,11 +234,11 @@ echo "$BODY" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
     console.error("today totals too small:", JSON.stringify(o.today)); process.exit(1);
   }
 })' "$ACCOUNT_ID" "Smoke Mock $RUN" "$EXPECT_COST" || die "overview assertions failed: $BODY"
-ok 7 "overview: 1 request on smoke account, todayCostUsd=$EXPECT_COST"
+ok 8 "overview: 1 request on smoke account, todayCostUsd=$EXPECT_COST"
 
-# --- 8. analytics (M2 routes; skipped while not merged) ---------------------
+# --- 9. analytics (M2 routes; skipped while not merged) ---------------------
 PROBE="$(curl -sS --max-time 10 -o "$TMP/body.json" -w "%{http_code}" "$BASE/admin/analytics/summary" \
-  -H "Authorization: Bearer $ADMIN_TOKEN")" || die "analytics probe curl failed to run"
+  -H "Authorization: Bearer $SESSION")" || die "analytics probe curl failed to run"
 
 if [ "$PROBE" = "404" ]; then
   echo "SKIP analytics (endpoint not merged yet)"
@@ -223,10 +248,10 @@ else
   echo "$BODY" | json_get total.requests >/dev/null || die "summary body unexpected: $BODY"
 
   TODAY="$(date -u +%Y-%m-%d)"
-  req 200 GET "/admin/analytics/timeseries?bucket=hour&from=${TODAY}T00:00:00Z" "" "$ADMIN_TOKEN"
+  req 200 GET "/admin/analytics/timeseries?bucket=hour&from=${TODAY}T00:00:00Z" "" "$SESSION"
   echo "$BODY" | json_get series >/dev/null || die "timeseries body unexpected: $BODY"
 
-  req 200 GET /admin/requests "" "$ADMIN_TOKEN"
+  req 200 GET /admin/requests "" "$SESSION"
   echo "$BODY" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
     if(!Array.isArray(JSON.parse(s).rows)) process.exit(1);
   })' || die "/admin/requests rows missing or not an array: $BODY"
@@ -234,12 +259,12 @@ else
   # SSE feed: hello event first, event-stream content type. --max-time 3
   # aborts the open stream (exit 28) once we have the first bytes — expected.
   curl -sN --max-time 3 -D "$TMP/feed.headers" -o "$TMP/feed.out" "$BASE/admin/analytics/feed" \
-    -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null || true
+    -H "Authorization: Bearer $SESSION" 2>/dev/null || true
   grep -qi 'content-type:[[:space:]]*text/event-stream' "$TMP/feed.headers" \
     || die "feed content-type unexpected: $(cat "$TMP/feed.headers")"
   head -c 4096 "$TMP/feed.out" | grep -q '^event: hello' \
     || die "feed missing hello event: $(head -c 500 "$TMP/feed.out")"
-  ok 8 "analytics: summary + timeseries(hour) + requests rows + feed hello"
+  ok 9 "analytics: summary + timeseries(hour) + requests rows + feed hello"
 fi
 
 echo "SMOKE OK (port=$PORT run=$RUN)"

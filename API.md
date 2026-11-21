@@ -4,17 +4,23 @@ Base URL: `http://<lan-host>:8477` (default port; `PORT` env changes it). LAN-on
 
 Three auth modes:
 
-| Mode | Header | Scope |
-|------|--------|-------|
-| none | — | `GET /healthz`, `GET /db/health` |
-| admin | `Authorization: Bearer $ADMIN_TOKEN` | every `/admin/*` route |
+| Mode | Credential | Scope |
+|------|------------|-------|
+| none | — | `GET /healthz`, `GET /db/health`, `GET /auth/status`, `POST /auth/register` (first boot only), `POST /auth/login` |
+| console session | `Authorization: Bearer $SESSION_TOKEN` or `pt_session` cookie | every `/admin/*` route, `GET /auth/me`, `POST /auth/logout` |
 | member key | `Authorization: Bearer pt_xxxxxx…` | every `/v1/*` route |
+
+Console auth: first boot is open — `POST /auth/register {email, name, password}` creates the
+admin account and closes registration (later attempts → 403 `registration_closed`). After that,
+`POST /auth/login {email, password}` issues a session token (30d TTL, also set as the
+`pt_session` HttpOnly cookie). `POST /auth/logout` revokes it.
 
 Every error body is `{ "error": { "code": "...", "message": "..." } }` (proxy errors may add fields, e.g. `retryAfterSec`, `availableModels`, `hint`). Examples below assume:
 
 ```bash
 export PT=http://127.0.0.1:8477
-export ADMIN_TOKEN=…            # env on the server side too
+export SESSION_TOKEN=$(curl -s -X POST $PT/auth/login -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"…"}' | jq -r .token)
 ```
 
 ## Infra (no auth)
@@ -29,12 +35,12 @@ curl $PT/db/health                            # {"ok":true} or 503 db_unavailabl
 Wire type: `openai-compatible` (served via `/v1/chat/completions` + `/v1/embeddings`) or `anthropic-compatible` (served via `/v1/messages`).
 
 ```bash
-curl -X POST $PT/admin/providers -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' \
+curl -X POST $PT/admin/providers -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' \
   -d '{"displayName":"CommandCode","type":"openai-compatible","baseUrl":"https://api.commandcode.ai/provider/v1"}'
-curl $PT/admin/providers -H "Authorization: Bearer $ADMIN_TOKEN"
-curl $PT/admin/providers/PROVIDER_ID -H "Authorization: Bearer $ADMIN_TOKEN"
-curl -X PATCH $PT/admin/providers/PROVIDER_ID -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{"displayName":"Mistral"}'
-curl -X DELETE $PT/admin/providers/PROVIDER_ID -H "Authorization: Bearer $ADMIN_TOKEN"   # 409 while it has accounts
+curl $PT/admin/providers -H "Authorization: Bearer $SESSION_TOKEN"
+curl $PT/admin/providers/PROVIDER_ID -H "Authorization: Bearer $SESSION_TOKEN"
+curl -X PATCH $PT/admin/providers/PROVIDER_ID -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' -d '{"displayName":"Mistral"}'
+curl -X DELETE $PT/admin/providers/PROVIDER_ID -H "Authorization: Bearer $SESSION_TOKEN"   # 409 while it has accounts
 ```
 
 Response shape: `{id, displayName, type, baseUrl, createdAt, updatedAt}`.
@@ -42,12 +48,12 @@ Response shape: `{id, displayName, type, baseUrl, createdAt, updatedAt}`.
 ## Admin — accounts (upstream subscriptions)
 
 ```bash
-curl -X POST $PT/admin/providers/PROVIDER_ID/accounts -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' \
+curl -X POST $PT/admin/providers/PROVIDER_ID/accounts -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' \
   -d '{"displayName":"compte-1","status":"active"}'
-curl $PT/admin/providers/PROVIDER_ID/accounts -H "Authorization: Bearer $ADMIN_TOKEN"
-curl $PT/admin/accounts/ACCOUNT_ID -H "Authorization: Bearer $ADMIN_TOKEN"
-curl -X PATCH $PT/admin/accounts/ACCOUNT_ID -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{"status":"benched"}'   # bench without deleting
-curl -X DELETE $PT/admin/accounts/ACCOUNT_ID -H "Authorization: Bearer $ADMIN_TOKEN"   # 409 while it has mappings
+curl $PT/admin/providers/PROVIDER_ID/accounts -H "Authorization: Bearer $SESSION_TOKEN"
+curl $PT/admin/accounts/ACCOUNT_ID -H "Authorization: Bearer $SESSION_TOKEN"
+curl -X PATCH $PT/admin/accounts/ACCOUNT_ID -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' -d '{"status":"benched"}'   # bench without deleting
+curl -X DELETE $PT/admin/accounts/ACCOUNT_ID -H "Authorization: Bearer $SESSION_TOKEN"   # 409 while it has mappings
 ```
 
 Response: `{id, providerId, displayName, status, keyPrefix, createdAt, updatedAt}` — never the key material, only its first 8 chars.
@@ -57,8 +63,8 @@ Response: `{id, providerId, displayName, status, keyPrefix, createdAt, updatedAt
 Plaintext enters here, is encrypted at rest (AES-256-GCM), and is never returned.
 
 ```bash
-curl -X POST $PT/admin/accounts/ACCOUNT_ID/credential -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{"apiKey":"sk-..."}'    # → {ok:true, keyPrefix:"sk-..."}
-curl -X DELETE $PT/admin/accounts/ACCOUNT_ID/credential -H "Authorization: Bearer $ADMIN_TOKEN"
+curl -X POST $PT/admin/accounts/ACCOUNT_ID/credential -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' -d '{"apiKey":"sk-..."}'    # → {ok:true, keyPrefix:"sk-..."}
+curl -X DELETE $PT/admin/accounts/ACCOUNT_ID/credential -H "Authorization: Bearer $SESSION_TOKEN"
 ```
 
 ### Connection test
@@ -66,21 +72,21 @@ curl -X DELETE $PT/admin/accounts/ACCOUNT_ID/credential -H "Authorization: Beare
 Real upstream probe (`GET {baseUrl}/models`, 5 s timeout):
 
 ```bash
-curl -X POST $PT/admin/accounts/ACCOUNT_ID/test -H "Authorization: Bearer $ADMIN_TOKEN"   # → {ok, httpStatus?, latencyMs}
+curl -X POST $PT/admin/accounts/ACCOUNT_ID/test -H "Authorization: Bearer $SESSION_TOKEN"   # → {ok, httpStatus?, latencyMs}
 ```
 
 ## Admin — models & mappings (the authored load balancer)
 
 ```bash
-curl -X POST $PT/admin/models -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{"displayName":"fast-flash"}'
-curl $PT/admin/models -H "Authorization: Bearer $ADMIN_TOKEN"
-curl $PT/admin/models/MODEL_ID -H "Authorization: Bearer $ADMIN_TOKEN"
-curl -X PATCH $PT/admin/models/MODEL_ID -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{"enabled":false}'
-curl -X DELETE $PT/admin/models/MODEL_ID -H "Authorization: Bearer $ADMIN_TOKEN"   # 409 while mapped / in a key allowlist
+curl -X POST $PT/admin/models -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' -d '{"displayName":"fast-flash"}'
+curl $PT/admin/models -H "Authorization: Bearer $SESSION_TOKEN"
+curl $PT/admin/models/MODEL_ID -H "Authorization: Bearer $SESSION_TOKEN"
+curl -X PATCH $PT/admin/models/MODEL_ID -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' -d '{"enabled":false}'
+curl -X DELETE $PT/admin/models/MODEL_ID -H "Authorization: Bearer $SESSION_TOKEN"   # 409 while mapped / in a key allowlist
 
-curl -X POST $PT/admin/models/MODEL_ID/mappings -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' \
+curl -X POST $PT/admin/models/MODEL_ID/mappings -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' \
   -d '{"accountId":"ACCOUNT_ID","upstreamModel":"deepseek/deepseek-v4.1-flash"}'   # upstreamModel optional, defaults to the logical name
-curl -X DELETE $PT/admin/mappings/MAPPING_ID -H "Authorization: Bearer $ADMIN_TOKEN"
+curl -X DELETE $PT/admin/mappings/MAPPING_ID -H "Authorization: Bearer $SESSION_TOKEN"
 ```
 
 Model read: `{id, displayName, enabled, createdAt, updatedAt, mappings:[{id, accountId, accountName, providerName, providerType, accountEnabled, upstreamModel}]}`. One logical model mapped to N accounts = its serving pool (least-used-in-window, cooldown on 429/5xx).
@@ -90,17 +96,17 @@ Model read: `{id, displayName, enabled, createdAt, updatedAt, mappings:[{id, acc
 Members are people (attribution only, no login). Keys are `pt_xxxxxx…` bearers, stored as SHA-256 only; the plaintext appears exactly once, in the creation response's `token` field.
 
 ```bash
-curl -X POST $PT/admin/members -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{"displayName":"Will"}'
-curl $PT/admin/members -H "Authorization: Bearer $ADMIN_TOKEN"
-curl $PT/admin/members/MEMBER_ID -H "Authorization: Bearer $ADMIN_TOKEN"
-curl -X PATCH $PT/admin/members/MEMBER_ID -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{"enabled":false}'
-curl -X DELETE $PT/admin/members/MEMBER_ID -H "Authorization: Bearer $ADMIN_TOKEN"   # 409 while it has keys
+curl -X POST $PT/admin/members -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' -d '{"displayName":"Will"}'
+curl $PT/admin/members -H "Authorization: Bearer $SESSION_TOKEN"
+curl $PT/admin/members/MEMBER_ID -H "Authorization: Bearer $SESSION_TOKEN"
+curl -X PATCH $PT/admin/members/MEMBER_ID -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' -d '{"enabled":false}'
+curl -X DELETE $PT/admin/members/MEMBER_ID -H "Authorization: Bearer $SESSION_TOKEN"   # 409 while it has keys
 
-curl -X POST $PT/admin/members/MEMBER_ID/keys -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{"label":"opencode-worker-3"}'   # 201 → {…, "token":"pt_xxxxxx…"} once
-curl $PT/admin/members/MEMBER_ID/keys -H "Authorization: Bearer $ADMIN_TOKEN"
-curl $PT/admin/keys/KEY_ID -H "Authorization: Bearer $ADMIN_TOKEN"
-curl -X PATCH $PT/admin/keys/KEY_ID -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{"enabled":false}'   # disable = immediate 401s
-curl -X DELETE $PT/admin/keys/KEY_ID -H "Authorization: Bearer $ADMIN_TOKEN"
+curl -X POST $PT/admin/members/MEMBER_ID/keys -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' -d '{"label":"opencode-worker-3"}'   # 201 → {…, "token":"pt_xxxxxx…"} once
+curl $PT/admin/members/MEMBER_ID/keys -H "Authorization: Bearer $SESSION_TOKEN"
+curl $PT/admin/keys/KEY_ID -H "Authorization: Bearer $SESSION_TOKEN"
+curl -X PATCH $PT/admin/keys/KEY_ID -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' -d '{"enabled":false}'   # disable = immediate 401s
+curl -X DELETE $PT/admin/keys/KEY_ID -H "Authorization: Bearer $SESSION_TOKEN"
 ```
 
 Key read shape: `{id, keyPrefix, label, enabled, createdAt}` — prefix for display only.
@@ -110,8 +116,8 @@ Key read shape: `{id, keyPrefix, label, enabled, createdAt}` — prefix for disp
 Empty = wildcard (every enabled model allowed). Non-empty = exactly those models.
 
 ```bash
-curl -X PUT $PT/admin/keys/KEY_ID/models -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{"modelIds":["MODEL_ID"]}'
-curl $PT/admin/keys/KEY_ID/models -H "Authorization: Bearer $ADMIN_TOKEN"
+curl -X PUT $PT/admin/keys/KEY_ID/models -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' -d '{"modelIds":["MODEL_ID"]}'
+curl $PT/admin/keys/KEY_ID/models -H "Authorization: Bearer $SESSION_TOKEN"
 ```
 
 ## Admin — prices (hand-set, USD per 1M tokens)
@@ -119,8 +125,8 @@ curl $PT/admin/keys/KEY_ID/models -H "Authorization: Bearer $ADMIN_TOKEN"
 Bulk replace: the list you PUT **is** the price table. Entries carrying an existing `id` update in place; missing rows are deleted. `modelMatcher` = exact upstream model name or a single trailing-glob (`claude-*`). Resolution at capture time: account-exact > provider-exact > account-glob > provider-glob.
 
 ```bash
-curl $PT/admin/prices -H "Authorization: Bearer $ADMIN_TOKEN"
-curl -X PUT $PT/admin/prices -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{
+curl $PT/admin/prices -H "Authorization: Bearer $SESSION_TOKEN"
+curl -X PUT $PT/admin/prices -H "Authorization: Bearer $SESSION_TOKEN" -H 'content-type: application/json' -d '{
   "prices":[
     {"scope":"provider","providerId":"PROVIDER_ID","modelMatcher":"deepseek/*","priceInput":0.14,"priceOutput":0.28},
     {"scope":"account","accountId":"ACCOUNT_ID","modelMatcher":"deepseek/deepseek-v4.1-flash","priceInput":0.10,"priceOutput":0.20,"priceCachedInput":0.05}
@@ -132,7 +138,7 @@ curl -X PUT $PT/admin/prices -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content
 Live aggregates from `Request` rows (UTC midnight boundary, SQL groupBy — no rollup tables):
 
 ```bash
-curl $PT/admin/overview -H "Authorization: Bearer $ADMIN_TOKEN"
+curl $PT/admin/overview -H "Authorization: Bearer $SESSION_TOKEN"
 ```
 
 ```json
@@ -154,7 +160,7 @@ All four are admin Bearer. Metrics only — never any prompt/response content (n
 Query params: `groupBy` = `provider|account|model|key|member` (default `provider`) · `from`,`to` ISO datetimes (default `from` = now−7d, `to` = now) — 400 on unparseable dates or `from ≥ to`.
 
 ```bash
-curl "$PT/admin/analytics/summary?groupBy=account&from=2026-11-13T00:00:00Z&to=2026-11-20T00:00:00Z" -H "Authorization: Bearer $ADMIN_TOKEN"
+curl "$PT/admin/analytics/summary?groupBy=account&from=2026-11-13T00:00:00Z&to=2026-11-20T00:00:00Z" -H "Authorization: Bearer $SESSION_TOKEN"
 ```
 
 ```json
@@ -174,7 +180,7 @@ Every row carries the same metric fields as `total`. Token fields sum nulls as 0
 Query params: `metric` = `requests|tokens|cost|latency` (default `requests`) · `bucket` = `hour|day` (default `hour`) · `from`,`to` (default now−24h for `hour`, now−30d for `day`) · optional `groupBy` = `provider|account|model|key|member`.
 
 ```bash
-curl "$PT/admin/analytics/timeseries?metric=cost&bucket=hour" -H "Authorization: Bearer $ADMIN_TOKEN"
+curl "$PT/admin/analytics/timeseries?metric=cost&bucket=hour" -H "Authorization: Bearer $SESSION_TOKEN"
 ```
 
 ```json
@@ -193,7 +199,7 @@ Every bucket in `from..to` is present, zero-filled. `value` = count for `request
 Query params: `from`,`to` ISO · `keyId`,`memberId`,`accountId`,`modelId` · `status` = `ok|error|aborted` · `stream` = `true|false` · `errorCode` string · `minLatencyMs` int · `limit` int ≤ 200 (default 50) · `cursor` opaque (invalid → 400).
 
 ```bash
-curl "$PT/admin/requests?memberId=MEMBER_ID&status=error&limit=10" -H "Authorization: Bearer $ADMIN_TOKEN"
+curl "$PT/admin/requests?memberId=MEMBER_ID&status=error&limit=10" -H "Authorization: Bearer $SESSION_TOKEN"
 ```
 
 ```json
@@ -216,7 +222,7 @@ Newest first (`ts DESC, id DESC`); key/member/account/model are `null` when the 
 Server-Sent Events. Headers: `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`.
 
 ```bash
-curl -N "$PT/admin/analytics/feed" -H "Authorization: Bearer $ADMIN_TOKEN"
+curl -N "$PT/admin/analytics/feed" -H "Authorization: Bearer $SESSION_TOKEN"
 ```
 
 On connect, one `hello` event:
