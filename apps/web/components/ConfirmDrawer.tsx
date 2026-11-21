@@ -52,14 +52,14 @@ export function ConfirmDrawer({
   return (
     <Drawer open={open} onClose={onClose} title={title}>
       <div className="flex flex-col gap-4">
-        <p className="text-body text-muted">{consequence}</p>
+        <p className="text-body text-secondary">{consequence}</p>
         {typedName !== undefined && (
           <Field label={`Type ${typedName} to confirm`}>
             <TextInput value={typed} onChange={setTyped} disabled={pending} />
           </Field>
         )}
         {err && (
-          <p className="text-body text-negative" role="alert">
+          <p className="text-body text-error" role="alert">
             {err.code}: {err.message}
           </p>
         )}
@@ -68,7 +68,7 @@ export function ConfirmDrawer({
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="h-[var(--control-height)] rounded-control px-3 text-sm text-muted hover:text-text"
+            className="h-[var(--control-height)] rounded-md px-3 text-sm text-secondary hover:text-foreground"
           >
             Cancel
           </button>
@@ -86,7 +86,7 @@ export function ConfirmDrawer({
                 setPending(false);
               }
             }}
-            className="h-[var(--control-height)] rounded-control border border-negative px-4 text-sm text-negative hover:bg-pill-negative-bg disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+            className="h-[var(--control-height)] rounded-md bg-error-surface px-4 text-sm text-error hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? pendingLabel : confirmLabel}
           </button>

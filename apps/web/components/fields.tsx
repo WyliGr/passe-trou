@@ -1,8 +1,8 @@
-// Form primitives per app-screens.md §8: label above the field (14/500, 8px gap), 38px inputs,
-// hint in muted or the API error verbatim in the negative tone under the field.
+// Form primitives per DESIGN.md: label above the field, surface inputs with a
+// #141414 border (focus = primary), hint secondary or the API error verbatim in error.
 
 const CONTROL =
-  "h-[38px] w-full rounded-card border border-control bg-raised px-3 text-body text-text outline-none placeholder:text-muted focus:border-accent disabled:opacity-60";
+  "h-[38px] w-full rounded-md border border-border bg-surface px-3 text-body text-foreground outline-none placeholder:text-secondary focus:border-primary disabled:opacity-60";
 
 export function Field({
   label,
@@ -17,12 +17,12 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-text">{label}</span>
+      <span className="mb-2 block text-sm font-medium text-foreground">{label}</span>
       {children}
       {error ? (
-        <span className="mt-1.5 block text-body text-negative">{error}</span>
+        <span className="mt-1.5 block text-body text-error">{error}</span>
       ) : hint ? (
-        <span className="mt-1.5 block text-small text-muted">{hint}</span>
+        <span className="mt-1.5 block text-small text-secondary">{hint}</span>
       ) : null}
     </label>
   );

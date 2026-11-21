@@ -1,7 +1,8 @@
-// Loading state: flat --raised bars at the real size (no shimmer), labels and headers shown at once.
+// Loading state: flat surface bars at the real size (no shimmer, no layout shift),
+// labels and headers shown at once.
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div aria-hidden="true" className={`rounded bg-raised ${className ?? ""}`} />;
+  return <div aria-hidden="true" className={`rounded bg-surface ${className ?? ""}`} />;
 }
 
 /** A stack of skeleton row bars at the given pitch (default table rows). */
@@ -17,7 +18,7 @@ export function SkeletonRows({
       {Array.from({ length: rows }, (_, i) => (
         <div
           key={i}
-          className="flex items-center border-rule [&:not(:first-child)]:border-t"
+          className="flex items-center border-border [&:not(:first-child)]:border-t"
           style={{ height: rowHeight }}
         >
           <Skeleton className="h-3.5 w-full" />

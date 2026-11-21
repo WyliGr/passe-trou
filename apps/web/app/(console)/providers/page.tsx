@@ -12,8 +12,8 @@ import { CreateButton } from "@/components/CreateButton";
 import { Empty } from "@/components/Empty";
 import { ErrorBlock } from "@/components/ErrorBlock";
 import { PageTitle } from "@/components/PageTitle";
-import { Pill, type PillVariant } from "@/components/Pill";
 import { Skeleton, SkeletonRows } from "@/components/Skeleton";
+import { StatusCellDot, accountTone } from "@/components/StatusDot";
 import { Table, type Column } from "@/components/Table";
 import {
   AccountDrawer,
@@ -45,27 +45,24 @@ type TestState =
   | { status: "running" }
   | { status: "done"; result: TestResult };
 
-function statusPill(
-  a: Account,
-  cooling: boolean,
-): { label: string; variant: PillVariant } {
-  if (a.status === "benched") return { label: "benched", variant: "warning" };
-  if (cooling) return { label: "cooling down", variant: "warning" };
-  return { label: "active", variant: "neutral" };
+function statusLabel(a: Account, cooling: boolean): string {
+  if (a.status === "benched") return "benched";
+  if (cooling) return "cooling down";
+  return "active";
 }
 
 function testTone(t: TestState): React.ReactNode {
   if (t.status === "running")
-    return <span className="font-mono text-body text-muted">testing…</span>;
+    return <span className="font-mono text-body text-secondary">testing…</span>;
   const r = t.result;
   if (r.ok)
     return (
-      <span className="font-mono text-body text-positive">
+      <span className="font-mono text-body text-success">
         + {typeof r.latencyMs === "number" ? `${fmtInt(r.latencyMs)} ms` : "ok"}
       </span>
     );
   return (
-    <span className="font-mono text-body text-negative">
+    <span className="font-mono text-body text-error">
       – {typeof r.httpStatus === "number" ? `HTTP ${r.httpStatus}` : "unreachable"}
     </span>
   );
@@ -142,14 +139,14 @@ export default function ProvidersPage() {
     {
       key: "displayName",
       header: "Account",
-      render: (a) => <span className="text-text">{a.displayName}</span>,
+      render: (a) => <span className="text-foreground">{a.displayName}</span>,
     },
     {
       key: "status",
       header: "Status",
       render: (a) => {
-        const s = statusPill(a, todayByAccount.get(a.id)?.cooling === true);
-        return <Pill variant={s.variant}>{s.label}</Pill>;
+        const cooling = todayByAccount.get(a.id)?.cooling === true;
+        return <StatusCellDot tone={accountTone(a.status, cooling)} label={statusLabel(a, cooling)} />;
       },
     },
     {
@@ -157,7 +154,7 @@ export default function ProvidersPage() {
       header: "Credential",
       render: (a) =>
         a.keyPrefix ? (
-          <span className="font-mono text-muted">{a.keyPrefix}…</span>
+          <span className="font-mono text-secondary">{a.keyPrefix}…</span>
         ) : (
           <span className="text-warning">no credential</span>
         ),
@@ -168,7 +165,7 @@ export default function ProvidersPage() {
       align: "right",
       render: (a) => {
         const t = todayByAccount.get(a.id);
-        return t ? fmtInt(t.todayRequests) : <span className="text-muted">–</span>;
+        return t ? fmtInt(t.todayRequests) : <span className="text-secondary">–</span>;
       },
     },
     {
@@ -178,9 +175,9 @@ export default function ProvidersPage() {
       render: (a) => {
         const t = todayByAccount.get(a.id);
         return t ? (
-          <span className="text-muted">{fmtCost(t.todayCostUsd)}</span>
+          <span className="text-secondary">{fmtCost(t.todayCostUsd)}</span>
         ) : (
-          <span className="text-muted">–</span>
+          <span className="text-secondary">–</span>
         );
       },
     },
@@ -198,14 +195,14 @@ export default function ProvidersPage() {
               type="button"
               onClick={() => void runTest(a.id)}
               disabled={tests[a.id]?.status === "running"}
-              className="text-text hover:text-accent disabled:text-muted"
+              className="text-foreground hover:text-primary disabled:text-secondary"
             >
               Test
             </button>
             <button
               type="button"
               onClick={() => setDrawer({ kind: "account-edit", provider, account: a })}
-              className="text-text hover:text-accent"
+              className="text-foreground hover:text-primary"
             >
               Edit
             </button>
@@ -215,7 +212,7 @@ export default function ProvidersPage() {
                 setDeleteError(null);
                 setDrawer({ kind: "account-delete", account: a });
               }}
-              className="text-negative hover:bg-pill-negative-bg"
+              className="text-error hover:bg-error-surface"
             >
               Delete
             </button>
@@ -244,7 +241,7 @@ export default function ProvidersPage() {
       ) : state.status === "loading" ? (
         <>
           {[0, 1].map((i) => (
-            <section key={i} className="rounded-card bg-surface p-6">
+            <section key={i} className="rounded-lg bg-surface p-6">
               <Skeleton className="mb-4 h-5 w-48" />
               <SkeletonRows rows={2} />
             </section>
@@ -256,21 +253,21 @@ export default function ProvidersPage() {
         board.providers.map((p) => {
           const accounts = board.accounts[p.id] ?? [];
           return (
-            <section key={p.id} className="group/ph rounded-card bg-surface p-6">
+            <section key={p.id} className="group/ph rounded-lg bg-surface p-6">
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <h2 className="text-section font-normal text-muted">
+                <h2 className="h2">
                   {p.displayName}
-                  <span className="ml-2 text-body">{p.type}</span>
+                  <span className="ml-2 text-body font-normal text-secondary">{p.type}</span>
                 </h2>
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-small text-muted">
+                  <span className="data-xs text-secondary">
                     {p.createdAt.slice(0, 10)}
                   </span>
                   <span className="flex items-center gap-3 text-body opacity-0 transition-opacity group-hover/ph:opacity-100 group-focus-within/ph:opacity-100">
                     <button
                       type="button"
                       onClick={() => setDrawer({ kind: "provider-edit", provider: p })}
-                      className="text-text hover:text-accent"
+                      className="text-foreground hover:text-primary"
                     >
                       Edit
                     </button>
@@ -280,7 +277,7 @@ export default function ProvidersPage() {
                         setDeleteError(null);
                         setDrawer({ kind: "provider-delete", provider: p });
                       }}
-                      className="text-negative hover:bg-pill-negative-bg"
+                      className="text-error hover:bg-error-surface"
                     >
                       Delete
                     </button>
@@ -288,7 +285,7 @@ export default function ProvidersPage() {
                   <button
                     type="button"
                     onClick={() => setDrawer({ kind: "account-new", provider: p })}
-                    className="h-[28px] rounded-control border border-control px-3 text-small text-text hover:border-muted"
+                    className="h-[28px] rounded-md bg-muted px-3 text-small text-foreground hover:bg-border"
                   >
                     New account
                   </button>

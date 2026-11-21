@@ -85,8 +85,8 @@ function PanelHeader({
     <>
       <div className="flex h-[73px] items-center justify-between gap-4">
         <div>
-          <h3 className="text-sm font-semibold">{title}</h3>
-          <p className="mt-1 text-body text-muted">{description}</p>
+          <h3 className="h3">{title}</h3>
+          <p className="mt-1 text-body text-secondary">{description}</p>
         </div>
         {metric !== undefined && onMetric && (
           <UnderlineSelect
@@ -97,7 +97,7 @@ function PanelHeader({
           />
         )}
       </div>
-      <div aria-hidden="true" className="-mx-6 border-t border-rule" />
+      <div aria-hidden="true" className="-mx-6 border-t border-border" />
     </>
   );
 }
@@ -258,7 +258,7 @@ export default function AnalyticsPage() {
       key: "rank",
       header: "#",
       render: (r) => (
-        <span className="text-muted">{rankedRight.indexOf(r) + 1}</span>
+        <span className="text-secondary">{rankedRight.indexOf(r) + 1}</span>
       ),
     },
     {
@@ -273,7 +273,7 @@ export default function AnalyticsPage() {
       align: "right",
       render: (r) =>
         r.value === null ? (
-          <span className="text-muted">–</span>
+          <span className="text-secondary">–</span>
         ) : (
           rightDef.format(r.value)
         ),
@@ -292,9 +292,9 @@ export default function AnalyticsPage() {
       <RangeTabs options={TABS} value={tab} onChange={setTab} ariaLabel="Metric" />
 
       <div className="flex items-center">
-        <span className="flex h-[var(--control-height)] items-center gap-2 rounded-control border border-control px-3">
-          <span className="text-body text-muted">Group by</span>
-          <span className="text-rule">·</span>
+        <span className="flex h-[var(--control-height)] items-center gap-2 rounded-full bg-muted px-3">
+          <span className="text-body text-secondary">Group by</span>
+          <span className="text-border">·</span>
           <UnderlineSelect
             options={GROUP_OPTIONS}
             value={groupBy}
@@ -304,14 +304,14 @@ export default function AnalyticsPage() {
         </span>
       </div>
 
-      <section aria-label="Window totals" className="rounded-card bg-surface p-1.5">
+      <section aria-label="Window totals" className="rounded-lg bg-surface p-1.5">
         {summary.status === "error" ? (
           <ErrorBlock error={summary.error} onRetry={loadSummary} />
         ) : summary.status === "loading" ? (
           <div className="grid grid-cols-6 max-md:grid-cols-2 max-md:gap-4">
             {KPI_IDS.map((id) => (
               <div key={id} className="px-4 py-3 max-md:px-0">
-                <span className="block text-sm font-medium text-muted">{kpiLabel(id)}</span>
+                <span className="block text-sm font-medium text-secondary">{kpiLabel(id)}</span>
                 <Skeleton className="mt-2 h-5 w-20" />
               </div>
             ))}
@@ -322,7 +322,7 @@ export default function AnalyticsPage() {
       </section>
 
       <div className="grid grid-cols-2 max-md:grid-cols-1" style={{ gap: "var(--gap)" }}>
-        <section aria-label="By group" className="rounded-card bg-surface p-6">
+        <section aria-label="By group" className="rounded-lg bg-surface p-6">
           <PanelHeader
             title="By group"
             description={`${METRICS[activeLeft].label} by ${groupBy}, sorted`}
@@ -346,7 +346,7 @@ export default function AnalyticsPage() {
           </div>
         </section>
 
-        <section aria-label="Ranking" className="rounded-card bg-surface p-6">
+        <section aria-label="Ranking" className="rounded-lg bg-surface p-6">
           <PanelHeader
             title="Ranking"
             description={`All ${groupBy}s by ${rightDef.label.toLowerCase()}`}
@@ -372,14 +372,14 @@ export default function AnalyticsPage() {
         </section>
       </div>
 
-      <section aria-label="Trend" className="rounded-card bg-surface p-6">
+      <section aria-label="Trend" className="rounded-lg bg-surface p-6">
         <PanelHeader
           title={tabLabel}
           description={`Per ${range === "24h" ? "hour" : "day"} across the window`}
         />
         <div className="pt-4">
           {tab === "errors" && series.status === "ok" && (
-            <p className="mb-3 text-body text-muted">
+            <p className="mb-3 text-body text-secondary">
               Error counts are not bucketed by the API — showing requests for context.
             </p>
           )}

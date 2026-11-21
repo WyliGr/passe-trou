@@ -1,6 +1,8 @@
 "use client";
 
-// The shell: fixed 56px icon rail (bottom bar with 10px labels on ≤768px), accent bar on the active item.
+// The shell: fixed 56px icon rail (bottom bar with 10px labels on ≤768px). Sidebar
+// rows are rounded-md 6px, secondary text; the active row is a muted fill with
+// foreground text — never a primary-colour mark (DESIGN.md).
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -40,6 +42,9 @@ function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
+const TOOLTIP =
+  "pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-small text-foreground shadow-card group-hover:block max-md:!hidden";
+
 function RailLink({ item, pathname }: { item: NavItem; pathname: string }) {
   const active = isActive(pathname, item.href);
   return (
@@ -47,18 +52,17 @@ function RailLink({ item, pathname }: { item: NavItem; pathname: string }) {
       href={item.href}
       aria-label={item.label}
       aria-current={active ? "page" : undefined}
-      className="group relative flex h-11 w-full items-center justify-center text-muted hover:text-text max-md:h-14 max-md:flex-col max-md:justify-center max-md:gap-0.5"
+      className="group relative flex h-11 w-full flex-col items-center justify-center gap-0.5 text-secondary hover:text-foreground max-md:h-14"
     >
-      {active && (
-        // The selection mark: a 1px accent bar on the rail's inner edge (top edge on the phone).
-        <span className="absolute right-0 top-1/2 h-[22px] w-px -translate-y-1/2 bg-accent max-md:left-1/2 max-md:right-auto max-md:top-0 max-md:h-px max-md:w-[22px] max-md:-translate-x-1/2 max-md:translate-y-0" />
-      )}
-      <item.Icon className={active ? "text-text" : undefined} />
-      <span className="hidden text-[10px] leading-none max-md:block">{item.label}</span>
       <span
-        role="tooltip"
-        className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-card bg-raised px-2 py-1 text-small text-text group-hover:block max-md:!hidden"
+        className={`flex h-8 w-8 items-center justify-center rounded-md ${
+          active ? "bg-muted text-foreground" : ""
+        }`}
       >
+        <item.Icon />
+      </span>
+      <span className="hidden text-[10px] leading-none max-md:block">{item.label}</span>
+      <span role="tooltip" className={TOOLTIP}>
         {item.label}
       </span>
     </Link>
@@ -85,7 +89,7 @@ export function Rail() {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-y-0 left-0 z-40 flex w-14 flex-col items-center border-r border-rule bg-ground max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:h-14 max-md:w-full max-md:flex-row max-md:border-r-0 max-md:border-t"
+      className="fixed inset-y-0 left-0 z-40 flex w-14 flex-col items-center border-r border-border bg-neutral max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:h-14 max-md:w-full max-md:flex-row max-md:border-r-0 max-md:border-t"
     >
       <Link
         href="/"
@@ -93,13 +97,13 @@ export function Rail() {
         className="mt-4 mb-5 flex h-6 w-6 items-center justify-center max-md:hidden"
       >
         <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-          <circle cx="12" cy="12" r="8" fill="var(--accent)" />
+          <circle cx="12" cy="12" r="8" fill="var(--color-primary)" />
         </svg>
       </Link>
       {MONITOR.map((item) => (
         <RailLink key={item.href} item={item} pathname={pathname} />
       ))}
-      <span aria-hidden="true" className="my-3 h-px w-5 bg-rule max-md:hidden" />
+      <span aria-hidden="true" className="my-3 h-px w-5 bg-border max-md:hidden" />
       {CONFIGURE.map((item) => (
         <RailLink key={item.href} item={item} pathname={pathname} />
       ))}
@@ -108,13 +112,13 @@ export function Rail() {
         <div className="group relative mb-1 flex h-11 w-full items-center justify-center max-md:hidden">
           <span
             aria-hidden="true"
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-raised text-[11px] font-medium text-text"
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-secondary"
           >
             {user.name.slice(0, 1).toUpperCase()}
           </span>
           <span
             role="tooltip"
-            className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-card bg-raised px-2 py-1 text-small text-text group-hover:block"
+            className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-small text-foreground shadow-card group-hover:block"
           >
             {user.name} · {user.email}
           </span>
@@ -124,14 +128,11 @@ export function Rail() {
         type="button"
         onClick={signOut}
         aria-label="Sign out"
-        className="group relative mb-4 flex h-11 w-full items-center justify-center text-muted hover:text-text max-md:mb-0 max-md:h-14 max-md:flex-col max-md:gap-0.5"
+        className="group relative mb-4 flex h-11 w-full flex-col items-center justify-center gap-0.5 text-secondary hover:text-foreground max-md:mb-0 max-md:h-14"
       >
         <IconLogout />
         <span className="hidden text-[10px] leading-none max-md:block">Sign out</span>
-        <span
-          role="tooltip"
-          className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-card bg-raised px-2 py-1 text-small text-text group-hover:block max-md:!hidden"
-        >
+        <span role="tooltip" className={TOOLTIP}>
           Sign out
         </span>
       </button>

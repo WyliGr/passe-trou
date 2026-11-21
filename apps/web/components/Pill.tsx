@@ -1,12 +1,14 @@
-// Status chip on the four pill token pairs (app-screens.md §7.6: 20px, 12px at 500, never squeezed).
+// Semantic badges (DESIGN.md): tinted surface + tinted text, rounded-sm — the only
+// place success/warning/error/info colours appear.
 
-export type PillVariant = "neutral" | "positive" | "negative" | "warning";
+export type PillVariant = "neutral" | "success" | "warning" | "error" | "info";
 
 const TONES: Record<PillVariant, string> = {
-  neutral: "bg-pill-neutral-bg text-pill-neutral-ink",
-  positive: "bg-pill-positive-bg text-pill-positive-ink",
-  negative: "bg-pill-negative-bg text-pill-negative-ink",
-  warning: "bg-pill-warning-bg text-pill-warning-ink",
+  neutral: "bg-muted text-foreground",
+  success: "bg-success-surface text-success",
+  warning: "bg-warning-surface text-warning",
+  error: "bg-error-surface text-error",
+  info: "bg-info-surface text-info",
 };
 
 export function Pill({
@@ -18,7 +20,7 @@ export function Pill({
 }) {
   return (
     <span
-      className={`inline-flex h-5 flex-none items-center whitespace-nowrap rounded-full px-2 text-small font-medium ${TONES[variant]}`}
+      className={`label inline-flex flex-none items-center whitespace-nowrap rounded-sm px-1.5 py-0.5 ${TONES[variant]}`}
     >
       {children}
     </span>

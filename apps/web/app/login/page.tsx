@@ -41,13 +41,14 @@ export default function LoginPage() {
       <div className="w-[400px] max-w-full">
         <div className="mb-8 flex items-center gap-3">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-            <circle cx="12" cy="12" r="8" fill="var(--accent)" />
+            <circle cx="12" cy="12" r="8" fill="var(--color-primary)" />
           </svg>
-          <span className="text-base font-semibold">
-            passe<span className="text-accent">•</span>trou
-          </span>
+          <h1 className="text-base font-semibold">passe•trou</h1>
         </div>
-        <form onSubmit={submit} className="flex flex-col">
+        <form
+          onSubmit={submit}
+          className="flex flex-col rounded-lg border border-border bg-surface p-4"
+        >
           <label htmlFor="email" className="mb-2 text-sm font-medium">
             Email
           </label>
@@ -58,7 +59,7 @@ export default function LoginPage() {
             autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="h-10 rounded-card border border-control bg-transparent px-3 text-text outline-none focus:border-accent"
+            className="h-10 rounded-md border border-border bg-surface px-3 text-foreground outline-none focus:border-primary"
           />
           <label htmlFor="password" className="mt-4 mb-2 text-sm font-medium">
             Password
@@ -69,24 +70,24 @@ export default function LoginPage() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-10 rounded-card border border-control bg-transparent px-3 text-text outline-none focus:border-accent"
+            className="h-10 rounded-md border border-border bg-surface px-3 text-foreground outline-none focus:border-primary"
           />
           {error && (
-            <p className="mt-3 text-small text-negative" role="alert">
+            <p className="mt-3 text-small text-error" role="alert">
               {error}
             </p>
           )}
           <button
             type="submit"
             disabled={pending || email.trim() === "" || password === ""}
-            className="mt-6 h-[var(--control-height)] rounded-control bg-text px-4 text-sm font-medium text-ground disabled:opacity-50"
+            className="mt-6 h-[var(--control-height)] rounded-md bg-primary px-4 text-sm font-medium text-white hover:bg-primary-hover active:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "Signing in…" : "Sign in"}
           </button>
         </form>
         {open && (
           <p className="mt-4 text-center text-small">
-            <Link href="/register" className="text-muted underline hover:text-text">
+            <Link href="/register" className="text-primary hover:text-primary-hover">
               First boot — create the admin account
             </Link>
           </p>

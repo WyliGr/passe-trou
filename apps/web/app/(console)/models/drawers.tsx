@@ -99,14 +99,14 @@ export function ModelDrawer({
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="h-[var(--control-height)] rounded-control px-3 text-sm text-muted hover:text-text"
+            className="h-[var(--control-height)] rounded-md px-3 text-sm text-secondary hover:text-foreground"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={pending}
-            className="h-[var(--control-height)] rounded-control border border-control px-4 text-sm text-text hover:border-muted disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-[var(--control-height)] rounded-md bg-muted px-4 text-sm text-foreground hover:bg-border disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "Saving…" : edit ? "Rename" : "Create model"}
           </button>
@@ -221,9 +221,9 @@ export function MapAccountDrawer({
       title={`Map an account to ${model?.displayName ?? "model"}`}
     >
       {candidates === null ? (
-        <p className="text-body text-muted">Reading the account list…</p>
+        <p className="text-body text-secondary">Reading the account list…</p>
       ) : candidates.length === 0 && !errors.form ? (
-        <p className="text-body text-muted">
+        <p className="text-body text-secondary">
           Every account is already mapped to this model — add an account on the Providers page
           first.
         </p>
@@ -261,7 +261,7 @@ export function MapAccountDrawer({
             />
           </Field>
           {errors.form && (
-            <p className="text-body text-negative" role="alert">
+            <p className="text-body text-error" role="alert">
               {errors.form}
             </p>
           )}
@@ -270,14 +270,14 @@ export function MapAccountDrawer({
               type="button"
               onClick={onClose}
               disabled={pending}
-              className="h-[var(--control-height)] rounded-control px-3 text-sm text-muted hover:text-text"
+              className="h-[var(--control-height)] rounded-md px-3 text-sm text-secondary hover:text-foreground"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={pending || !accountId}
-              className="h-[var(--control-height)] rounded-control border border-control px-4 text-sm text-text hover:border-muted disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-[var(--control-height)] rounded-md bg-muted px-4 text-sm text-foreground hover:bg-border disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pending ? "Saving…" : "Map account"}
             </button>

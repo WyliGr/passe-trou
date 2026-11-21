@@ -43,7 +43,7 @@ export function PricingTable({
   return (
     <table className="w-full border-collapse text-body">
       <thead>
-        <tr className="h-9 text-left text-small font-normal text-muted">
+        <tr className="h-9 text-left label text-secondary">
           <th scope="col" className="pr-4 font-normal">Matcher</th>
           <th scope="col" className="pr-4 font-normal">Scope</th>
           <th scope="col" className="pr-4 text-right font-normal">Input $/M tok</th>
@@ -56,14 +56,14 @@ export function PricingTable({
       </thead>
       <tbody>
         {prices.map((p) => (
-          <tr key={p.id} className="h-[var(--row-height)] border-t border-rule">
+          <tr key={p.id} className="h-[var(--row-height)] border-t border-border">
             <td className="pr-4 font-mono tabular-nums">{p.modelMatcher}</td>
-            <td className="pr-4 text-muted">{scopeLabel(p, providers, accounts)}</td>
+            <td className="pr-4 text-secondary">{scopeLabel(p, providers, accounts)}</td>
             <td className="pr-4 text-right font-mono tabular-nums">{fmtCost(p.priceInput)}</td>
             <td className="pr-4 text-right font-mono tabular-nums">{fmtCost(p.priceOutput)}</td>
             <td className="pr-4 text-right font-mono tabular-nums">
               {p.priceCachedInput === null ? (
-                <span className="text-muted">–</span>
+                <span className="text-secondary">–</span>
               ) : (
                 fmtCost(p.priceCachedInput)
               )}
@@ -73,14 +73,14 @@ export function PricingTable({
                 <button
                   type="button"
                   onClick={() => onEdit(p)}
-                  className="text-text hover:underline"
+                  className="text-foreground hover:underline"
                 >
                   Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => onDelete(p)}
-                  className="text-negative hover:underline"
+                  className="text-error hover:underline"
                 >
                   Delete
                 </button>

@@ -26,7 +26,7 @@ export function MembersTable({
   return (
     <table className="w-full border-collapse text-body">
       <thead>
-        <tr className="h-9 text-left text-small font-normal text-muted">
+        <tr className="h-9 text-left label text-secondary">
           <th scope="col" className="pr-4 font-normal">Name</th>
           <th scope="col" className="pr-4 text-right font-normal">Keys</th>
           <th scope="col" className="w-36 text-right font-normal">Created</th>
@@ -63,7 +63,7 @@ function MemberRows({
 }) {
   return (
     <>
-      <tr className="h-[var(--row-height)] border-t border-rule">
+      <tr className="h-[var(--row-height)] border-t border-border">
         <td className="pr-4">
           <button
             type="button"
@@ -76,10 +76,10 @@ function MemberRows({
           </button>
         </td>
         <td className="pr-4 text-right font-mono tabular-nums">{member.keys.length}</td>
-        <td className="text-right font-mono tabular-nums text-muted">{fmtDay(member.createdAt)}</td>
+        <td className="text-right font-mono tabular-nums text-secondary">{fmtDay(member.createdAt)}</td>
       </tr>
       {open && (
-        <tr className="border-t border-rule">
+        <tr className="border-t border-border">
           <td colSpan={3} className="p-0">
             <KeysSubtable
               member={member}
@@ -104,7 +104,7 @@ function KeysSubtable({
 }) {
   if (member.keys.length === 0) {
     return (
-      <p className="flex h-[var(--row-height)] items-center pl-7 text-body text-muted">
+      <p className="flex h-[var(--row-height)] items-center pl-7 text-body text-secondary">
         No keys yet — issue one so this member can call the proxy.
       </p>
     );
@@ -112,7 +112,7 @@ function KeysSubtable({
   return (
     <table className="w-full border-collapse text-body">
       <thead>
-        <tr className="h-9 text-left text-small font-normal text-muted">
+        <tr className="h-9 text-left label text-secondary">
           <th scope="col" className="pl-7 pr-4 font-normal">Prefix</th>
           <th scope="col" className="pr-4 font-normal">Label</th>
           <th scope="col" className="pr-4 font-normal">Allowed models</th>
@@ -124,15 +124,15 @@ function KeysSubtable({
       </thead>
       <tbody>
         {member.keys.map((k) => (
-          <tr key={k.id} className="h-[var(--row-height)] border-t border-rule">
-            <td className="pl-7 pr-4 font-mono tabular-nums text-muted">{k.keyPrefix}…</td>
+          <tr key={k.id} className="h-[var(--row-height)] border-t border-border">
+            <td className="pl-7 pr-4 font-mono tabular-nums text-secondary">{k.keyPrefix}…</td>
             <td className="pr-4">
               {k.label}
-              {!k.enabled && <span className="ml-2 text-muted">(disabled)</span>}
+              {!k.enabled && <span className="ml-2 text-secondary">(disabled)</span>}
             </td>
             <td className="pr-4">
               {k.allowlist.length === 0 ? (
-                <span className="text-muted">all models</span>
+                <span className="text-secondary">all models</span>
               ) : (
                 <span className="flex flex-wrap items-center gap-1.5">
                   {k.allowlist.map((am) => (
@@ -141,7 +141,7 @@ function KeysSubtable({
                 </span>
               )}
             </td>
-            <td className="pr-4 text-right font-mono tabular-nums text-muted">
+            <td className="pr-4 text-right font-mono tabular-nums text-secondary">
               {fmtDay(k.createdAt)}
             </td>
             <td className="text-right">
@@ -149,14 +149,14 @@ function KeysSubtable({
                 <button
                   type="button"
                   onClick={() => onEditAllowlist(member, k)}
-                  className="text-text hover:underline"
+                  className="text-foreground hover:underline"
                 >
                   Edit allowlist
                 </button>
                 <button
                   type="button"
                   onClick={() => onDeleteKey(member, k)}
-                  className="text-negative hover:underline"
+                  className="text-error hover:underline"
                 >
                   Delete
                 </button>
@@ -181,7 +181,7 @@ export function ModelChecklist({
 }) {
   if (models === null) return <SkeletonRows rows={3} rowHeight="34px" />;
   if (models.length === 0) {
-    return <p className="text-body text-muted">No models yet — create one on the models page.</p>;
+    return <p className="text-body text-secondary">No models yet — create one on the models page.</p>;
   }
   const toggle = (id: string) => {
     const next = new Set(selected);
@@ -190,20 +190,20 @@ export function ModelChecklist({
     onChange(next);
   };
   return (
-    <div className="max-h-64 overflow-y-auto rounded-card border border-rule">
+    <div className="max-h-64 overflow-y-auto rounded-lg border border-border">
       {models.map((m) => (
         <label
           key={m.id}
-          className="flex h-[34px] items-center gap-3 border-rule px-3 text-body [&:not(:first-child)]:border-t"
+          className="flex h-[34px] items-center gap-3 border-border px-3 text-body [&:not(:first-child)]:border-t"
         >
           <input
             type="checkbox"
             checked={selected.has(m.id)}
             onChange={() => toggle(m.id)}
-            className="h-4 w-4 accent-[var(--accent)]"
+            className="h-4 w-4 accent-[var(--color-primary)]"
           />
           <span>{m.displayName}</span>
-          {!m.enabled && <span className="text-muted">(disabled)</span>}
+          {!m.enabled && <span className="text-secondary">(disabled)</span>}
         </label>
       ))}
     </div>
@@ -224,7 +224,7 @@ export function KeyTokenBlock({ token }: { token: string }) {
           value={token}
           aria-label="New API key"
           onFocus={(e) => e.target.select()}
-          className="h-[38px] w-full rounded-l-card border border-control border-r-0 bg-surface px-3 font-mono text-body text-text outline-none"
+          className="h-[38px] w-full rounded-l-md border border-border border-r-0 bg-surface px-3 font-mono text-body text-foreground outline-none"
         />
         <button
           type="button"
@@ -233,7 +233,7 @@ export function KeyTokenBlock({ token }: { token: string }) {
             setCopied(true);
             window.setTimeout(() => setCopied(false), 1500);
           }}
-          className="h-[38px] flex-none rounded-r-card border border-control px-3 text-small text-text hover:border-muted"
+          className="h-[38px] flex-none rounded-r-md bg-muted px-3 text-small text-foreground hover:bg-border"
         >
           {copied ? "Copied" : "Copy"}
         </button>

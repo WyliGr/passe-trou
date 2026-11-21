@@ -1,8 +1,9 @@
 "use client";
 
-// Hand-rolled SVG line chart per §6: 3-5 faint horizontal gridlines, right-aligned muted mono y
-// labels, dates on x (time scale), one 1.5px --chart-1 series with no legend, crosshair tooltip
-// in a --raised card. Zero is always the baseline. Null values break the line (honest gaps).
+// Hand-rolled SVG line chart per DESIGN.md: 3-5 faint gridlines (#141414), secondary
+// mono y labels, dates on x (time scale), one 2px primary series with no legend,
+// crosshair tooltip in a bordered surface card (the overlay shadow). Zero is always
+// the baseline. Null values break the line (honest gaps).
 // Merge of W13 (null gaps + secondary/legend p95 chips) and W14 (label + overlay series API).
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -70,7 +71,7 @@ export function LineChart({
   legend?: ChartLegend;
   /** Primary series name, shown in legend + tooltip when an overlay is present. */
   label?: string;
-  /** Optional second series (e.g. p95 next to avg) — drawn in --chart-3 with a legend. */
+  /** Optional second series (e.g. p95 next to avg) — drawn in info with a legend. */
   overlay?: { points: LinePoint[]; label: string; color?: string };
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -159,10 +160,10 @@ export function LineChart({
       {secondary && legend && (
         <div className="mb-2 flex items-center gap-4">
           {[legend.primary, legend.secondary].map((name, i) => (
-            <span key={name} className="flex items-center gap-1.5 text-small text-muted">
+            <span key={name} className="flex items-center gap-1.5 text-small text-secondary">
               <span
                 aria-hidden="true"
-                className="inline-block h-[2px] w-4 bg-chart-1"
+                className="inline-block h-[2px] w-4 bg-primary"
                 style={i === 1 ? { opacity: 0.35 } : undefined}
               />
               {name}
@@ -179,14 +180,14 @@ export function LineChart({
                 x2={width - pad.right}
                 y1={geom.y(t)}
                 y2={geom.y(t)}
-                stroke="var(--border)"
+                stroke="var(--color-border)"
                 strokeWidth="1"
               />
               <text
                 x={pad.left - 8}
                 y={geom.y(t) + 3}
                 textAnchor="end"
-                fill="var(--muted)"
+                fill="var(--color-secondary)"
                 fontSize="12"
                 className="font-mono"
               >
@@ -199,7 +200,7 @@ export function LineChart({
             x2={width - pad.right}
             y1={pad.top + plotH}
             y2={pad.top + plotH}
-            stroke="var(--control)"
+            stroke="var(--color-border)"
             strokeWidth="1"
           />
           {geom.xl.map((l) => (
@@ -208,7 +209,7 @@ export function LineChart({
               x={l.anchor === "start" ? pad.left : l.anchor === "end" ? width - pad.right : geom.x(l.ts)}
               y={height - 8}
               textAnchor={l.anchor}
-              fill="var(--muted)"
+              fill="var(--color-secondary)"
               fontSize="12"
               className="font-mono"
             >
@@ -218,8 +219,8 @@ export function LineChart({
           <path
             d={geom.path}
             fill="none"
-            stroke="var(--chart-1)"
-            strokeWidth="1.5"
+            stroke="var(--color-primary)"
+            strokeWidth="2"
             strokeLinejoin="round"
             strokeLinecap="round"
           />
@@ -227,8 +228,8 @@ export function LineChart({
             <path
               d={geom.path2}
               fill="none"
-              stroke="var(--chart-1)"
-              strokeWidth="1.5"
+              stroke="var(--color-primary)"
+              strokeWidth="2"
               strokeLinejoin="round"
               strokeLinecap="round"
               opacity={0.35}
@@ -238,14 +239,14 @@ export function LineChart({
             <path
               d={geom.overlayPath}
               fill="none"
-              stroke={overlay?.color ?? "var(--chart-3)"}
-              strokeWidth="1.5"
+              stroke={overlay?.color ?? "var(--color-info)"}
+              strokeWidth="2"
               strokeLinejoin="round"
               strokeLinecap="round"
             />
           )}
           {points.length === 1 && points[0]!.value !== null && (
-            <circle cx={geom.x(points[0]!.ts)} cy={geom.y(points[0]!.value!)} r="3.5" fill="var(--chart-1)" />
+            <circle cx={geom.x(points[0]!.ts)} cy={geom.y(points[0]!.value!)} r="3.5" fill="var(--color-primary)" />
           )}
           {hover !== null && hoverPt && hoverPt.value !== null && (
             <g pointerEvents="none">
@@ -254,16 +255,16 @@ export function LineChart({
                 x2={px(hover)}
                 y1={pad.top}
                 y2={pad.top + plotH}
-                stroke="var(--control)"
+                stroke="var(--color-border)"
                 strokeWidth="1"
               />
               <circle
                 cx={px(hover)}
                 cy={geom.y(hoverPt.value)}
                 r="3.5"
-                fill="var(--chart-1)"
-                stroke="var(--surface)"
-                strokeWidth="1.5"
+                fill="var(--color-primary)"
+                stroke="var(--color-neutral)"
+                strokeWidth="2"
               />
             </g>
           )}
@@ -272,10 +273,10 @@ export function LineChart({
       {overlay && (
         <div className="pointer-events-none absolute right-2 top-0 flex gap-4">
           {[
-            { name: label ?? "Series", color: "var(--chart-1)" },
-            { name: overlay.label, color: overlay.color ?? "var(--chart-3)" },
+            { name: label ?? "Series", color: "var(--color-primary)" },
+            { name: overlay.label, color: overlay.color ?? "var(--color-info)" },
           ].map((s) => (
-            <span key={s.name} className="flex items-center gap-1.5 text-small text-muted">
+            <span key={s.name} className="flex items-center gap-1.5 text-small text-secondary">
               <span
                 aria-hidden="true"
                 className="inline-block h-[3px] w-3 rounded-full"
@@ -288,23 +289,23 @@ export function LineChart({
       )}
       {hover !== null && hoverPt && (
         <div
-          className="pointer-events-none absolute z-10 rounded-card bg-raised px-2 py-1 text-small shadow-card"
+          className="pointer-events-none absolute z-10 rounded-md border border-border bg-surface px-2 py-1 text-small shadow-card"
           style={{
             left: Math.min(Math.max(px(hover) - 60, 0), Math.max(width - 140, 0)),
             top: 0,
           }}
         >
-          <span className="font-mono text-muted">{fmtPointTs(hoverPt.ts, geom!.span)}</span>
-          <span className="mx-2 text-rule">·</span>
-          {overlay && <span className="mr-1 text-muted">{label ?? "value"}</span>}
-          <span className="font-mono text-text">
+          <span className="font-mono text-secondary">{fmtPointTs(hoverPt.ts, geom!.span)}</span>
+          <span className="mx-2 text-border">·</span>
+          {overlay && <span className="mr-1 text-secondary">{label ?? "value"}</span>}
+          <span className="font-mono text-foreground">
             {hoverPt.value === null ? "–" : formatValue(hoverPt.value)}
           </span>
           {hoverSec && hoverSec.value !== null && (
             <>
-              <span className="mx-2 text-rule">·</span>
-              <span className="mr-1 text-muted">{legend?.secondary}</span>
-              <span className="font-mono text-text">{formatValue(hoverSec.value)}</span>
+              <span className="mx-2 text-border">·</span>
+              <span className="mr-1 text-secondary">{legend?.secondary}</span>
+              <span className="font-mono text-foreground">{formatValue(hoverSec.value)}</span>
             </>
           )}
           {overlay &&
@@ -312,9 +313,9 @@ export function LineChart({
               const v = geom!.overlayByTs.get(hoverPt.ts);
               return v !== undefined && v !== null ? (
                 <>
-                  <span className="mx-2 text-rule">·</span>
-                  <span className="mr-1 text-muted">{overlay.label}</span>
-                  <span className="font-mono text-text">{formatValue(v)}</span>
+                  <span className="mx-2 text-border">·</span>
+                  <span className="mr-1 text-secondary">{overlay.label}</span>
+                  <span className="font-mono text-foreground">{formatValue(v)}</span>
                 </>
               ) : null;
             })()}

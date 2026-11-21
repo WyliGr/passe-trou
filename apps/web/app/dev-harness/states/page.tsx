@@ -25,6 +25,7 @@ import type { RankedRow } from "@/lib/analytics";
 import type { RequestRow } from "@/lib/requests";
 import { ConfirmDrawer } from "@/components/ConfirmDrawer";
 import { CreateButton } from "@/components/CreateButton";
+import { StatusCellDot } from "@/components/StatusDot";
 import { Field, SecretInput, SelectInput, TextInput } from "@/components/fields";
 import type { Account, AdminModel, MemberWithKeys, Price, Provider } from "@/lib/admin";
 import { KeyTokenBlock, MembersTable, ModelChecklist } from "@/app/(console)/members/ui";
@@ -118,17 +119,17 @@ const FIXTURE_REQUESTS: RequestRow[] = [
 
 type Row = { account: string; provider: string; status: React.ReactNode; req: number; cost: number };
 const ROWS: Row[] = [
-  { account: "compte-1", provider: "CommandCode", status: <Pill variant="neutral">active</Pill>, req: 96, cost: 0.8123 },
-  { account: "compte-2", provider: "CommandCode", status: <Pill variant="warning">cooling down</Pill>, req: 41, cost: 0.4191 },
-  { account: "mistral-1", provider: "Mistral", status: <Pill variant="warning">benched</Pill>, req: 0, cost: 0 },
+  { account: "compte-1", provider: "CommandCode", status: <StatusCellDot tone="success" label="active" />, req: 96, cost: 0.8123 },
+  { account: "compte-2", provider: "CommandCode", status: <StatusCellDot tone="warning" label="cooling down" />, req: 41, cost: 0.4191 },
+  { account: "mistral-1", provider: "Mistral", status: <StatusCellDot tone="error" label="down" />, req: 0, cost: 0 },
 ];
 
 const COLUMNS: Column<Row>[] = [
   { key: "account", header: "Account" },
-  { key: "provider", header: "Provider", render: (r) => <span className="text-muted">{r.provider}</span> },
+  { key: "provider", header: "Provider", render: (r) => <span className="text-secondary">{r.provider}</span> },
   { key: "status", header: "Status" },
   { key: "req", header: "Requests", align: "right", render: (r) => fmtInt(r.req) },
-  { key: "cost", header: "Cost", align: "right", render: (r) => <span className="text-muted">{fmtCost(r.cost)}</span> },
+  { key: "cost", header: "Cost", align: "right", render: (r) => <span className="text-secondary">{fmtCost(r.cost)}</span> },
 ];
 
 // --- W16 fixtures: /members and /pricing screens ---
@@ -166,8 +167,8 @@ const PRICES_FIXTURE: Price[] = [
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-card bg-surface p-6 flex flex-col gap-4">
-      <h2 className="text-base font-semibold">{title}</h2>
+    <section className="rounded-lg bg-surface p-6 flex flex-col gap-4">
+      <h2 className="h2">{title}</h2>
       {children}
     </section>
   );
@@ -194,14 +195,14 @@ export default function DevStatesPage() {
           <button
             type="button"
             onClick={() => setDrawer(true)}
-            className="h-[var(--control-height)] rounded-control border border-control px-4 text-sm text-text hover:border-muted"
+            className="h-[var(--control-height)] rounded-md bg-muted px-4 text-sm text-foreground hover:bg-border"
           >
             Open drawer
           </button>
         }
       />
 
-      <Block title="KpiStrip — selected cell carries the accent line">
+      <Block title="KpiStrip — selected cell carries the muted fill">
         <KpiStrip
           items={[
             { id: "requests", label: "Requests", value: fmtInt(137) },
@@ -279,29 +280,34 @@ export default function DevStatesPage() {
         <RequestLane fixtures={{ events: [], feedState: "live" }} />
       </Block>
 
-      <Block title="Request table — ok muted / error pill / aborted pill; click a row for the drawer">
-        <Table
-          columns={requestColumns({ account: true, wire: true, tokens: true, now })}
-          rows={FIXTURE_REQUESTS}
-          rowKey={(r) => r.id}
-          onRowClick={setReqDrawerRow}
-          rowClassName={(r) => (r.id === FIXTURE_REQUESTS[0]!.id ? "row-in" : "")}
-        />
+      <Block title="Request table — ok muted / error badge / aborted badge; click a row for the drawer">
+        <div className="overflow-x-auto">
+          <Table
+            columns={requestColumns({ account: true, wire: true, tokens: true, now })}
+            rows={FIXTURE_REQUESTS}
+            rowKey={(r) => r.id}
+            onRowClick={setReqDrawerRow}
+            rowClassName={(r) => (r.id === FIXTURE_REQUESTS[0]!.id ? "row-in" : "")}
+          />
+        </div>
         <Empty sentence="No requests match — widen the filters or send traffic to the proxy." />
         <ErrorBlock error={new ApiError("invalid_cursor", "cursor is not valid base64url JSON", 400)} onRetry={() => undefined} />
         <SkeletonRows rows={3} rowHeight="42px" />
       </Block>
 
       <Block title="Table">
-        <Table columns={COLUMNS} rows={ROWS} rowKey={(r) => r.account} />
+        <div className="overflow-x-auto">
+          <Table columns={COLUMNS} rows={ROWS} rowKey={(r) => r.account} />
+        </div>
       </Block>
 
-      <Block title="Pills">
+      <Block title="Badges — the only place semantic colours appear">
         <div className="flex gap-3">
           <Pill variant="neutral">active</Pill>
-          <Pill variant="positive">reachable</Pill>
+          <Pill variant="success">reachable</Pill>
           <Pill variant="warning">benched</Pill>
-          <Pill variant="negative">pool_exhausted</Pill>
+          <Pill variant="error">pool_exhausted</Pill>
+          <Pill variant="info">cooldown_429</Pill>
         </div>
       </Block>
 
@@ -318,7 +324,7 @@ export default function DevStatesPage() {
         <Skeleton className="h-[200px] w-full" />
       </Block>
 
-      <Block title="Create control — outlined, accent line under the label (W15)">
+      <Block title="Create control — the one primary button (DESIGN.md)">
         <div>
           <CreateButton label="New provider" onClick={() => undefined} />
         </div>
@@ -350,9 +356,9 @@ export default function DevStatesPage() {
 
       <Block title="Providers — inline connection-test result, signs not colours (W15)">
         <div className="flex gap-6 font-mono text-body">
-          <span className="text-positive">+ 214 ms</span>
-          <span className="text-negative">– HTTP 401</span>
-          <span className="text-muted">testing…</span>
+          <span className="text-success">+ 214 ms</span>
+          <span className="text-error">– HTTP 401</span>
+          <span className="text-secondary">testing…</span>
           <span className="font-sans text-warning">no credential</span>
         </div>
       </Block>
@@ -361,25 +367,25 @@ export default function DevStatesPage() {
         <div className="pl-6">
           <div className="flex h-9 items-center gap-3">
             <span className="min-w-0 flex-1 text-body">
-              <span className="text-text">compte-1</span>
-              <span className="text-muted"> · CommandCode</span>
+              <span className="text-foreground">compte-1</span>
+              <span className="text-secondary"> · CommandCode</span>
             </span>
-            <span className="font-mono text-body text-muted">deepseek/deepseek-v4.1-flash</span>
-            <span className="w-14 text-right text-negative">Delete</span>
+            <span className="font-mono text-body text-secondary">deepseek/deepseek-v4.1-flash</span>
+            <span className="w-14 text-right text-error">Delete</span>
           </div>
-          <div className="flex h-9 items-center gap-3 border-t border-rule">
+          <div className="flex h-9 items-center gap-3 border-t border-border">
             <span className="min-w-0 flex-1 text-body">
-              <span className="text-text">mistral-1</span>
-              <span className="text-muted"> · Mistral</span>
+              <span className="text-foreground">mistral-1</span>
+              <span className="text-secondary"> · Mistral</span>
             </span>
             <Pill variant="warning">benched</Pill>
-            <span className="font-mono text-body text-muted">mistral-small-latest</span>
+            <span className="font-mono text-body text-secondary">mistral-small-latest</span>
             <span className="w-14" />
           </div>
-          <div className="mt-1 border-t border-rule pt-2">
+          <div className="mt-1 border-t border-border pt-2">
             <button
               type="button"
-              className="h-[28px] rounded-control border border-control px-3 text-small text-text hover:border-muted"
+              className="h-[28px] rounded-md bg-muted px-3 text-small text-foreground hover:bg-border"
             >
               Map account…
             </button>
@@ -392,31 +398,33 @@ export default function DevStatesPage() {
           <button
             type="button"
             onClick={() => setConfirm(true)}
-            className="h-[var(--control-height)] rounded-control border border-negative px-4 text-sm text-negative hover:bg-pill-negative-bg"
+            className="h-[var(--control-height)] rounded-md bg-error-surface px-4 text-sm text-error hover:brightness-125"
           >
             Delete account
           </button>
-          <span className="text-body text-muted">
+          <span className="text-body text-secondary">
             Esc/backdrop cancels; the confirm needs the typed account name.
           </span>
         </div>
       </Block>
 
       <Block title="Members — table with expand, keys and allowlists (W16 fixtures)">
-        <MembersTable
-          members={MEMBERS_FIXTURE}
-          expanded={memberExpanded}
-          onToggle={(id) =>
-            setMemberExpanded((prev) => {
-              const next = new Set(prev);
-              if (next.has(id)) next.delete(id);
-              else next.add(id);
-              return next;
-            })
-          }
-          onEditAllowlist={() => undefined}
-          onDeleteKey={() => undefined}
-        />
+        <div className="overflow-x-auto">
+          <MembersTable
+            members={MEMBERS_FIXTURE}
+            expanded={memberExpanded}
+            onToggle={(id) =>
+              setMemberExpanded((prev) => {
+                const next = new Set(prev);
+                if (next.has(id)) next.delete(id);
+                else next.add(id);
+                return next;
+              })
+            }
+            onEditAllowlist={() => undefined}
+            onDeleteKey={() => undefined}
+          />
+        </div>
       </Block>
 
       <Block title="Members — model checklist, key shown once, empty (W16)">
@@ -426,19 +434,21 @@ export default function DevStatesPage() {
       </Block>
 
       <Block title="Pricing — scoped rules table (W16 fixtures)">
-        <PricingTable
-          prices={PRICES_FIXTURE}
-          providers={PROVIDERS_FIXTURE}
-          accounts={ACCOUNTS_FIXTURE}
-          onEdit={() => undefined}
-          onDelete={() => undefined}
-        />
-        <p className="text-body text-muted">Unpriced: claude-pool · embed-small</p>
+        <div className="overflow-x-auto">
+          <PricingTable
+            prices={PRICES_FIXTURE}
+            providers={PROVIDERS_FIXTURE}
+            accounts={ACCOUNTS_FIXTURE}
+            onEdit={() => undefined}
+            onDelete={() => undefined}
+          />
+        </div>
+        <p className="text-body text-secondary">Unpriced: claude-pool · embed-small</p>
         <Empty sentence="No price rules yet — requests are metered, but cost stays unknown until a model has a price." />
       </Block>
 
       <Drawer open={drawer} onClose={() => setDrawer(false)} title="Drawer">
-        <p className="text-body text-muted">
+        <p className="text-body text-secondary">
           Detail content for the selected object goes here — Esc or the X closes.
         </p>
       </Drawer>

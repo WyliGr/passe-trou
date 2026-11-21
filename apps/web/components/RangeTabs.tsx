@@ -1,6 +1,7 @@
 "use client";
 
-// Segmented range presets: underline tabs on a 1px rule, selection = 1px accent line as wide as the label.
+// Segmented range presets: underline tabs on a 1px rule; selection = foreground text
+// with a foreground underline — never the primary colour (DESIGN.md).
 
 export interface RangeOption {
   id: string;
@@ -19,7 +20,7 @@ export function RangeTabs<T extends string>({
   ariaLabel?: string;
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className="flex gap-5 border-b border-rule">
+    <div role="tablist" aria-label={ariaLabel} className="flex gap-5 border-b border-border">
       {options.map((opt) => {
         const selected = opt.id === value;
         return (
@@ -30,14 +31,14 @@ export function RangeTabs<T extends string>({
             aria-selected={selected}
             onClick={() => onChange(opt.id as T)}
             className={`relative flex h-[var(--control-height)] items-center text-body ${
-              selected ? "text-text" : "text-muted hover:text-text"
+              selected ? "text-foreground" : "text-secondary hover:text-foreground"
             }`}
           >
             {opt.label}
             {selected && (
               <span
                 aria-hidden="true"
-                className="absolute inset-x-0 -bottom-px h-px bg-accent"
+                className="absolute inset-x-0 -bottom-px h-px bg-foreground"
               />
             )}
           </button>

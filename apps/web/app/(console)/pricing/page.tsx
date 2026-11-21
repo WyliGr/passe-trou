@@ -83,7 +83,7 @@ export default function PricingPage() {
           actions={<CreateButton onClick={() => setEditing("new")}>New price rule</CreateButton>}
         />
         {unpriced.length > 0 && (
-          <p className="mt-2 text-body text-muted">
+          <p className="mt-2 text-body text-secondary">
             Unpriced: {unpriced.map((m) => m.displayName).join(" · ")}
           </p>
         )}
@@ -96,13 +96,15 @@ export default function PricingPage() {
       ) : data.prices.length === 0 ? (
         <Empty sentence="No price rules yet — requests are metered, but cost stays unknown until a model has a price." />
       ) : (
-        <PricingTable
-          prices={data.prices}
-          providers={data.providers}
-          accounts={data.accounts}
-          onEdit={setEditing}
-          onDelete={setDeleting}
-        />
+        <div className="overflow-x-auto rounded-lg bg-surface p-6">
+          <PricingTable
+            prices={data.prices}
+            providers={data.providers}
+            accounts={data.accounts}
+            onEdit={setEditing}
+            onDelete={setDeleting}
+          />
+        </div>
       )}
 
       {data && (
@@ -321,7 +323,7 @@ function PriceEditorDrawer({
           </Field>
         </div>
 
-        {clientError && <p className="text-body text-negative">{clientError}</p>}
+        {clientError && <p className="text-body text-error">{clientError}</p>}
         {error !== null && !clientError && <ErrorBlock error={error} />}
 
         <div className="flex justify-end">
