@@ -16,7 +16,7 @@ Read-only analytics API over the `requests` table: grouped summaries, time serie
 
 ## Contract
 
-Auth: `Authorization: Bearer <ADMIN_TOKEN>` on everything below. Time params: `from`, `to` as ISO 8601 (default: last 7 days). All responses JSON except the feed.
+Auth: `Authorization: Bearer <console bearer token>` on everything below. Time params: `from`, `to` as ISO 8601 (default: last 7 days). All responses JSON except the feed.
 
 ### T1 — `GET /admin/analytics/summary` (w08)
 Query: `groupBy` = `provider|account|model|key|member` (default `provider`), `from`, `to`.
