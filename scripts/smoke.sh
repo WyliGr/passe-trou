@@ -17,7 +17,7 @@ APP_PID=""; MOCK_PID=""
 PROVIDER_ID=""; ACCOUNT_ID=""; MODEL_ID=""; MAPPING_ID=""; MEMBER_ID=""; KEY_ID=""
 PRICES_ORIG=""
 # Console session (register on first boot, else login with the same smoke creds).
-SMOKE_EMAIL="${SMOKE_ADMIN_EMAIL:-smoke-admin@local}"
+SMOKE_EMAIL="${SMOKE_ADMIN_EMAIL:-smoke-admin@smoke.local}"
 SMOKE_PASSWORD="${SMOKE_ADMIN_PASSWORD:-smoke-admin-password}"
 REGISTERED=""
 SESSION=""
@@ -31,7 +31,7 @@ die() {
 ok() { echo "ok $1 — $2"; }
 
 # --- credentials: env wins, then untracked apps/api/.env ---------------------
-envfile_val() { grep -E "^$1=" "$API/.env" 2>/dev/null | tail -n 1 | cut -d= -f2- || true; }
+envfile_val() { grep -E "^$1=" "$API/.env" 2>/dev/null | tail -n 1 | cut -d= -f2- | sed 's/^"//; s/"$//' || true; }
 DATABASE_URL="${DATABASE_URL:-$(envfile_val DATABASE_URL)}"
 [ -n "$DATABASE_URL" ] || die "DATABASE_URL required (env or apps/api/.env)"
 ENCRYPTION_MASTER_KEY="${ENCRYPTION_MASTER_KEY:-$(envfile_val ENCRYPTION_MASTER_KEY)}"
@@ -151,7 +151,8 @@ else
   # (on 401, req's die prints the body — set SMOKE_ADMIN_EMAIL/PASSWORD to an existing account)
 fi
 SESSION="$(echo "$BODY" | json_get token)" || die "no session token in auth response"
-ok 3 "console session via ${REGISTERED:+register}${REGISTERED:-login}"
+HOW="login"; [ -n "$REGISTERED" ] && HOW="register"
+ok 3 "console session via $HOW"
 
 # --- 4. admin gate closed without the session --------------------------------
 req 401 GET /admin/providers
