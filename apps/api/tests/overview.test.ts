@@ -51,7 +51,7 @@ async function waitFor<T>(fn: () => Promise<T | null>, ms = 5000): Promise<T> {
 }
 
 async function overview(): Promise<Overview> {
-  const res = await testApp().request("/admin/overview", { headers: adminHeaders() });
+  const res = await testApp().request("/admin/overview", { headers: await adminHeaders() });
   expect(res.status).toBe(200);
   return (await res.json()) as Overview;
 }

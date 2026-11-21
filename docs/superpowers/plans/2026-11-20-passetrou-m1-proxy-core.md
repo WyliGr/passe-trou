@@ -18,7 +18,7 @@
 - LAN-only: server binds `0.0.0.0:${PORT}` (default 8787); NO auth-exposed admin beyond Bearer, NO HTTPS/tunnel code.
 - Upstream `User-Agent` is always `passe-trou/<version>` (never the client's UA; Cloudflare 403s default library UAs).
 - Secrets: upstream API keys stored AES-256-GCM (`ENCRYPTION_KEY`, 32-byte hex env); passe•trou keys are `pt_sk_` + 24 random hex chars, stored as sha256 hex only; plaintext shown once at creation.
-- Admin endpoints under `/admin/*` require `Authorization: Bearer ${ADMIN_TOKEN}` (env, no Admin table).
+- Admin endpoints under `/admin/*` require `Authorization: Bearer ${console bearer token}` (env, no Admin table).
 - **Retention on standby: NEVER persist request/response/thinking bodies** — metrics columns only. No `RequestPayload` table in this schema.
 - Wire formats: passthrough only. Provider `kind` must match the client edge (`openai`↔`/v1/chat/completions`, `anthropic`↔`/v1/messages`); mismatch → 400 `{error: {code: "wrong_wire_format", ...}}` naming the correct edge; NO translation.
 - Failover/circuit: 429 → honor `Retry-After` else exponential 30 s→30 min cap; other 5xx → same backoff. Silent failover only before first client byte; after first byte, forward terminal error, never retry.
@@ -41,7 +41,7 @@
 - Test: `apps/api/tests/health.test.ts`
 
 **Interfaces:**
-- Produces: `createApp(): Hono` in `src/app.ts`; `env` object in `src/env.ts` (zod-parsed: `PORT=8787`, `DATABASE_URL`, `ADMIN_TOKEN`, `ENCRYPTION_KEY` (64 hex chars), `PGPORT=54329`); npm scripts at root: `dev`, `build`, `test`, `db:up`, `db:migrate`.
+- Produces: `createApp(): Hono` in `src/app.ts`; `env` object in `src/env.ts` (zod-parsed: `PORT=8787`, `DATABASE_URL`, `console bearer token`, `ENCRYPTION_KEY` (64 hex chars), `PGPORT=54329`); npm scripts at root: `dev`, `build`, `test`, `db:up`, `db:migrate`.
 
 - [ ] **Step 1: Failing test** — `tests/health.test.ts`:
 ```ts
@@ -52,7 +52,7 @@ it("GET /health returns ok", async () => {
 });
 ```
 - [ ] **Step 2: Run** `npm test` in `apps/api` → FAIL (module not found).
-- [ ] **Step 3: Implement** scaffold: `src/env.ts` (zod parse, throws on missing `DATABASE_URL`/`ADMIN_TOKEN`/`ENCRYPTION_KEY`), `src/app.ts` (`new Hono()`, `/health`), `src/index.ts` (`serve` from `@hono/node-server`, bind `0.0.0.0`), dev `docker-compose.dev.yml` = single `postgres:16-alpine` service on `127.0.0.1:${PGPORT}:5432`, db `passetrou`, user/pass `passetrou`. Deps: `hono @hono/node-server zod`; dev: `tsx typescript vitest @types/node tsup`.
+- [ ] **Step 3: Implement** scaffold: `src/env.ts` (zod parse, throws on missing `DATABASE_URL`/`console bearer token`/`ENCRYPTION_KEY`), `src/app.ts` (`new Hono()`, `/health`), `src/index.ts` (`serve` from `@hono/node-server`, bind `0.0.0.0`), dev `docker-compose.dev.yml` = single `postgres:16-alpine` service on `127.0.0.1:${PGPORT}:5432`, db `passetrou`, user/pass `passetrou`. Deps: `hono @hono/node-server zod`; dev: `tsx typescript vitest @types/node tsup`.
 - [ ] **Step 4: Run** `npm test` → PASS. Also verify: `npm run dev` boots and `curl localhost:8787/health` returns the JSON.
 - [ ] **Step 5: Commit** `chore: scaffold passe•trou monorepo (apps/api, hono, vitest, dev pg)`
 
@@ -112,7 +112,7 @@ enum RequestStatus { ok error aborted }
 
 **Interfaces:**
 - Consumes: `db` (T2), `encryptSecret`/`decryptSecret` (T3).
-- Produces routes (all under `adminAuth` middleware — 401 `{error:{code:"unauthorized"}}` unless `Authorization: Bearer ${env.ADMIN_TOKEN}`):
+- Produces routes (all under `adminAuth` middleware — 401 `{error:{code:"unauthorized"}}` unless `Authorization: Bearer ${env.console bearer token}`):
   - `GET/POST /admin/providers`, `GET/PATCH/DELETE /admin/providers/:id` (zod body `{name, kind: "openai"|"anthropic", defaultBaseUrl?}`)
   - `GET/POST /admin/accounts`, `GET/PATCH/DELETE /admin/accounts/:id` (body `{providerId, label, baseUrl?, apiKey}`; store `apiKeyEnc`; **responses return `apiKeyPreview: prefix + "…"`, never plaintext**)
   - `POST /admin/accounts/:id/test` → decrypts key, GETs upstream `{baseUrl||provider.defaultBaseUrl}/models` with UA `passe-trou/<version>`, returns `{ok, latencyMs, models: string[]}`; on failure `{ok:false, httpStatus?, error}` — never leaks the key.

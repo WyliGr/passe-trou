@@ -21,9 +21,8 @@ docker run -d --name passetrou-pg \
   -p 127.0.0.1:5434:5432 postgres:16-alpine
 
 npm install
-cd apps/api && cp .env.example .env   # then edit the three required values:
+cd apps/api && cp .env.example .env   # then edit the two required values:
 # DATABASE_URL             postgresql://postgres:change-me@127.0.0.1:5434/passetrou
-# ADMIN_TOKEN              bearer for every /admin/* route (32+ chars; openssl rand -hex 24)
 # ENCRYPTION_MASTER_KEY    AES-256-GCM key for upstream credentials, 64+ hex (openssl rand -hex 32)
 
 npm run db:migrate   # prisma migrate dev
@@ -46,15 +45,15 @@ public exposure is a deliberate operator move, later. Full route reference:
 
 ## Analytics
 
-Four admin endpoints (Bearer `$ADMIN_TOKEN`) read the captured `Request` rows:
+Four admin endpoints (Bearer session token from `/auth/login`) read the captured `Request` rows:
 grouped aggregates, bucketed series, a paginated request log, and a live SSE
 feed of every call as it lands:
 
 ```bash
-curl "http://127.0.0.1:8477/admin/analytics/summary?groupBy=account" -H "Authorization: Bearer $ADMIN_TOKEN"        # totals per provider/account/model/key/member
-curl "http://127.0.0.1:8477/admin/analytics/timeseries?metric=cost&bucket=hour" -H "Authorization: Bearer $ADMIN_TOKEN"  # zero-filled hourly/daily buckets
-curl "http://127.0.0.1:8477/admin/requests?status=error&limit=10" -H "Authorization: Bearer $ADMIN_TOKEN"               # filterable log, cursor-stable pagination
-curl -N "http://127.0.0.1:8477/admin/analytics/feed" -H "Authorization: Bearer $ADMIN_TOKEN"                              # live SSE, backfill via /admin/requests
+curl "http://127.0.0.1:8477/admin/analytics/summary?groupBy=account" -H "Authorization: Bearer $SESSION_TOKEN"        # totals per provider/account/model/key/member
+curl "http://127.0.0.1:8477/admin/analytics/timeseries?metric=cost&bucket=hour" -H "Authorization: Bearer $SESSION_TOKEN"  # zero-filled hourly/daily buckets
+curl "http://127.0.0.1:8477/admin/requests?status=error&limit=10" -H "Authorization: Bearer $SESSION_TOKEN"               # filterable log, cursor-stable pagination
+curl -N "http://127.0.0.1:8477/admin/analytics/feed" -H "Authorization: Bearer $SESSION_TOKEN"                              # live SSE, backfill via /admin/requests
 ```
 
 ## Self-host (docker)
@@ -73,11 +72,10 @@ curl localhost:3100/login
 | Var | What |
 |---|---|
 | `POSTGRES_PASSWORD` | DB password — `openssl rand -hex 24` |
-| `ADMIN_TOKEN` | Bearer for every `/admin/*` route (32+ chars) — `openssl rand -hex 32` |
 | `ENCRYPTION_MASTER_KEY` | AES-256-GCM master key for stored upstream credentials, 64 hex — `openssl rand -hex 32`. Back it up: losing it bricks stored secrets |
 | `PASSETROU_WEB_PORT` | Optional published console port (default `3100`) |
 
-First login: open `http://localhost:3100/login` and paste your `ADMIN_TOKEN`.
+First boot: open `http://localhost:3100/register` and create the admin account (registration closes after the first account).
 
 Dev note: to hit the raw API instead of the proxy, uncomment the `ports:` block
 on the `api` service (`${PASSETROU_PORT:-8477}:8477`). The web image bakes the

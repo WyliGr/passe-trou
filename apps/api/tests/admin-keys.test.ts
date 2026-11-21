@@ -4,10 +4,10 @@ import { adminHeaders, db, testApp } from "./setup.ts";
 const URL = "http://localhost";
 const TOKEN_RE = /^pt_[0-9a-f]{32}$/;
 
-function req(path: string, init: RequestInit = {}) {
+async function req(path: string, init: RequestInit = {}) {
   return testApp().request(`${URL}${path}`, {
     ...init,
-    headers: { ...adminHeaders(), ...(init.headers ?? {}) },
+    headers: { ...await adminHeaders(), ...(init.headers ?? {}) },
   });
 }
 

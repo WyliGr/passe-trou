@@ -1,22 +1,22 @@
 "use client";
 
-// Guards every shell route: no stored admin token → redirect to /login. Renders nothing until checked.
+// Guards every shell route: server-side middleware checks the pt_session
+// cookie, this confirms the session is still live via /auth/me (a revoked
+// session 401s and bounces to /login). Renders nothing until checked.
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getToken } from "@/lib/api";
+import { me } from "@/lib/api";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    if (!getToken()) {
-      router.replace("/login");
-      return;
-    }
-    setAllowed(true);
-  }, [router]);
+    me()
+      .then(() => setAllowed(true))
+      .catch(() => {
+        // 401 → apiFetch already redirected to /login
+      });
+  }, []);
 
   if (!allowed) return null;
   return <>{children}</>;

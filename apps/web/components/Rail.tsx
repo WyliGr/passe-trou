@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   IconAnalytics,
   IconLogout,
@@ -14,7 +15,7 @@ import {
   IconProviders,
   IconRequests,
 } from "@/components/icons";
-import { clearToken } from "@/lib/api";
+import { logout, me, type SessionUser } from "@/lib/api";
 
 type NavItem = {
   href: string;
@@ -67,10 +68,18 @@ function RailLink({ item, pathname }: { item: NavItem; pathname: string }) {
 export function Rail() {
   const pathname = usePathname();
   const router = useRouter();
+  const [user, setUser] = useState<SessionUser | null>(null);
 
-  const logout = () => {
-    clearToken();
-    router.replace("/login");
+  useEffect(() => {
+    me()
+      .then(setUser)
+      .catch(() => {});
+  }, []);
+
+  const signOut = () => {
+    void logout()
+      .catch(() => {})
+      .finally(() => router.replace("/login"));
   };
 
   return (
@@ -95,19 +104,35 @@ export function Rail() {
         <RailLink key={item.href} item={item} pathname={pathname} />
       ))}
       <span className="flex-1 max-md:hidden" />
+      {user && (
+        <div className="group relative mb-1 flex h-11 w-full items-center justify-center max-md:hidden">
+          <span
+            aria-hidden="true"
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-raised text-[11px] font-medium text-text"
+          >
+            {user.name.slice(0, 1).toUpperCase()}
+          </span>
+          <span
+            role="tooltip"
+            className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-card bg-raised px-2 py-1 text-small text-text group-hover:block"
+          >
+            {user.name} · {user.email}
+          </span>
+        </div>
+      )}
       <button
         type="button"
-        onClick={logout}
-        aria-label="Log out"
+        onClick={signOut}
+        aria-label="Sign out"
         className="group relative mb-4 flex h-11 w-full items-center justify-center text-muted hover:text-text max-md:mb-0 max-md:h-14 max-md:flex-col max-md:gap-0.5"
       >
         <IconLogout />
-        <span className="hidden text-[10px] leading-none max-md:block">Logout</span>
+        <span className="hidden text-[10px] leading-none max-md:block">Sign out</span>
         <span
           role="tooltip"
           className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-card bg-raised px-2 py-1 text-small text-text group-hover:block max-md:!hidden"
         >
-          Log out
+          Sign out
         </span>
       </button>
     </nav>

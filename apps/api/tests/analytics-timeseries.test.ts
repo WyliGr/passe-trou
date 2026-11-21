@@ -34,7 +34,7 @@ interface TimeseriesResponse {
 
 async function timeseries(query = ""): Promise<{ status: number; body: TimeseriesResponse }> {
   const res = await testApp().request(`/admin/analytics/timeseries${query}`, {
-    headers: adminHeaders(),
+    headers: await adminHeaders(),
   });
   return { status: res.status, body: (await res.json()) as TimeseriesResponse };
 }
@@ -94,7 +94,7 @@ describe("GET /admin/analytics/timeseries", () => {
     "groupBy=tenant",
     "from=2025-01-02T00:00:00Z&to=2025-01-01T00:00:00Z",
   ])("400 on invalid params: %s", async (q) => {
-    const res = await testApp().request(`/admin/analytics/timeseries?${q}`, { headers: adminHeaders() });
+    const res = await testApp().request(`/admin/analytics/timeseries?${q}`, { headers: await adminHeaders() });
     expect(res.status).toBe(400);
     expect((await res.json()).error.code).toBeDefined();
   });
@@ -267,7 +267,7 @@ describe("GET /admin/analytics/timeseries", () => {
     await makeReq(db, { ts: new Date("2025-01-02T02:30:00Z") });
     const res = await testApp({ db: weirdDb }).request(
       "/admin/analytics/timeseries?bucket=day&from=2025-01-01T06:00:00Z&to=2025-01-03T23:00:00Z",
-      { headers: adminHeaders() },
+      { headers: await adminHeaders() },
     );
     const body = (await res.json()) as TimeseriesResponse;
     expect(body.series[0].points.map((p) => p.ts)).toEqual([
@@ -281,7 +281,7 @@ describe("GET /admin/analytics/timeseries", () => {
   it("400 when the window spans an excessive number of buckets", async () => {
     const res = await testApp().request(
       "/admin/analytics/timeseries?bucket=hour&from=2020-01-01T00:00:00Z&to=2025-01-01T00:00:00Z",
-      { headers: adminHeaders() },
+      { headers: await adminHeaders() },
     );
     expect(res.status).toBe(400);
   });

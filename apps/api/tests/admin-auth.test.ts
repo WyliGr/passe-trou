@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adminHeaders, db, testApp, TEST_ADMIN_TOKEN } from "./setup.ts";
+import { adminHeaders, createTestUser, db, testApp } from "./setup.ts";
 
 async function expectErrorShape(res: Response, status: number) {
   expect(res.status).toBe(status);
@@ -10,14 +10,25 @@ async function expectErrorShape(res: Response, status: number) {
 }
 
 describe("admin auth", () => {
-  it("rejects /admin/* without Authorization header", async () => {
+  it("rejects /admin/* without credentials", async () => {
     const res = await testApp().request("http://localhost/admin/providers");
     await expectErrorShape(res, 401);
   });
 
-  it("rejects /admin/* with a wrong token", async () => {
+  it("rejects an unknown session token", async () => {
     const res = await testApp().request("http://localhost/admin/providers", {
       headers: { authorization: "Bearer wrong-token-wrong-token-wrong" },
+    });
+    await expectErrorShape(res, 401);
+  });
+
+  it("rejects an expired session", async () => {
+    const { token } = await createTestUser();
+    await db.session.updateMany({
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    const res = await testApp().request("http://localhost/admin/providers", {
+      headers: { authorization: `Bearer ${token}` },
     });
     await expectErrorShape(res, 401);
   });
@@ -28,15 +39,24 @@ describe("admin auth", () => {
   });
 
   it("rejects a malformed Authorization scheme", async () => {
+    const { token } = await createTestUser();
     const res = await testApp().request("http://localhost/admin/providers", {
-      headers: { authorization: `Basic ${TEST_ADMIN_TOKEN}` },
+      headers: { authorization: `Basic ${token}` },
     });
     await expectErrorShape(res, 401);
   });
 
-  it("accepts the configured token", async () => {
+  it("accepts a live session via Bearer", async () => {
     const res = await testApp().request("http://localhost/admin/providers", {
-      headers: adminHeaders(),
+      headers: await adminHeaders(),
+    });
+    expect(res.status).not.toBe(401);
+  });
+
+  it("accepts a live session via the pt_session cookie", async () => {
+    const { token } = await createTestUser();
+    const res = await testApp().request("http://localhost/admin/providers", {
+      headers: { cookie: `pt_session=${token}` },
     });
     expect(res.status).not.toBe(401);
   });
@@ -52,15 +72,15 @@ describe("admin auth", () => {
   });
 
   it("/v1/* space is not behind admin auth", async () => {
-    // Proxy space has its own key auth (Task 8): an admin-token 401 must never
-    // appear there. No key → proxy-domain 401 (invalid_api_key), and the admin
-    // token itself does not open /v1/*.
+    // Proxy space has its own key auth (Task 8): an admin-auth 401 must never
+    // appear there. No key → proxy-domain 401 (invalid_api_key), and a console
+    // session token does not open /v1/*.
     const anon = await testApp().request("http://localhost/v1/models");
     expect(anon.status).toBe(401);
     expect(((await anon.json()) as { error: { code: string } }).error.code).toBe("invalid_api_key");
 
     const withAdmin = await testApp().request("http://localhost/v1/models", {
-      headers: adminHeaders(),
+      headers: await adminHeaders(),
     });
     expect(withAdmin.status).toBe(401);
     expect(((await withAdmin.json()) as { error: { code: string } }).error.code).toBe("invalid_api_key");

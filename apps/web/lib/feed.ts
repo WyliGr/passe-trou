@@ -1,12 +1,10 @@
 "use client";
 
-// Live feed client for GET /admin/analytics/feed (SSE).
-// CONTRACT: the brief asked for EventSource, but EventSource cannot send the
-// Authorization: Bearer header the admin middleware requires — the wire events
-// are consumed over fetch() + a manual SSE parse instead (same event names,
-// same payloads), with the briefed backoff 1s → 2s → 5s → 15s.
+// Live feed client for GET /admin/analytics/feed (SSE). The pt_session cookie
+// is sent automatically (same-origin via /api) — no Authorization header, so
+// the wire events are consumed over fetch() + a manual SSE parse (same event
+// names, same payloads), with the briefed backoff 1s → 2s → 5s → 15s.
 
-import { getToken, clearToken } from "@/lib/api";
 import type { FeedRow } from "@/lib/requests";
 
 export type FeedState = "connecting" | "live" | "reconnecting";
@@ -61,22 +59,16 @@ export function connectFeed(handlers: FeedHandlers): FeedHandle {
 
   const run = async () => {
     if (closed) return;
-    const token = getToken();
-    if (!token) {
-      // Signed out mid-stream; the app-level 401 bounce handles the redirect.
-      return;
-    }
     gotHello = false;
     handlers.onState?.(attempt === 0 ? "connecting" : "reconnecting");
     abort = new AbortController();
     try {
       const res = await fetch("/api/admin/analytics/feed", {
-        headers: { Authorization: `Bearer ${token}` },
         signal: abort.signal,
         cache: "no-store",
       });
       if (res.status === 401) {
-        clearToken();
+        // Session gone (logout or expiry) — bounce like every other admin call.
         window.location.assign("/login");
         return;
       }
