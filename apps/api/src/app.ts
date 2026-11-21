@@ -6,6 +6,7 @@ import { pinoHttp } from "pino-http";
 import { ZodError } from "zod";
 import { adminAuth } from "./admin/middleware.ts";
 import { adminRouter } from "./admin/index.ts";
+import { authRouter } from "./routes/auth.ts";
 import type { Db } from "./db.ts";
 import { proxyAuth } from "./proxy/auth.ts";
 import { recordProxyError } from "./proxy/capture.ts";
@@ -16,7 +17,6 @@ import { openaiRouter } from "./proxy/openai.ts";
 
 export interface AppDeps {
   db: Db;
-  adminToken: string;
   /** 32-byte AES-256 key for upstream credential vault. */
   masterKey: Buffer;
   /** Analytics SSE heartbeat interval in ms (default 15000; tests inject short). */
@@ -81,7 +81,10 @@ export function createApp(deps: AppDeps) {
     }
   });
 
-  app.use("/admin/*", adminAuth(deps.adminToken));
+  // Console account auth (open before any admin route; /auth/me+/logout guard themselves).
+  app.route("/auth", authRouter(deps));
+
+  app.use("/admin/*", adminAuth(deps.db));
   app.route("/admin", adminRouter(deps));
 
   // Proxy edge: key-based auth on everything under /v1.

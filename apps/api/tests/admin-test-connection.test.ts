@@ -6,10 +6,10 @@ import { adminHeaders, testApp } from "./setup.ts";
 const URL = "http://localhost";
 const PLAINTEXT = "sk-testconn-secret-000";
 
-function req(path: string, init: RequestInit = {}) {
+async function req(path: string, init: RequestInit = {}) {
   return testApp().request(`${URL}${path}`, {
     ...init,
-    headers: { ...adminHeaders(), ...(init.headers ?? {}) },
+    headers: { ...await adminHeaders(), ...(init.headers ?? {}) },
   });
 }
 

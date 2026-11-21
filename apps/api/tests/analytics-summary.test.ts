@@ -34,7 +34,8 @@ interface Summary {
   rows: Array<{ key: string; label: string | null } & Metrics>;
 }
 
-async function summary(query = "", headers: Record<string, string> = adminHeaders()) {
+async function summary(query = "", headers?: Record<string, string>) {
+  headers = headers ?? (await adminHeaders());
   const res = await testApp().request(`/admin/analytics/summary${query}`, { headers });
   return res;
 }

@@ -92,6 +92,16 @@ export type ApiKeyModel = Prisma.ApiKeyModelModel
  */
 export type Request = Prisma.RequestModel
 /**
+ * Model User
+ * 
+ */
+export type User = Prisma.UserModel
+/**
+ * Model Session
+ * 
+ */
+export type Session = Prisma.SessionModel
+/**
  * Model IdempotencyKey
  * 
  */

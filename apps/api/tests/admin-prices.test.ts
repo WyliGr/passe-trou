@@ -33,7 +33,7 @@ describe("admin prices", () => {
     const app = testApp();
     const put = await app.request("/admin/prices", {
       method: "PUT",
-      headers: { ...adminHeaders(), "content-type": "application/json" },
+      headers: { ...await adminHeaders(), "content-type": "application/json" },
       body: JSON.stringify({
         prices: [
           entry({ providerId: provider.id }),
@@ -53,7 +53,7 @@ describe("admin prices", () => {
     const created = (await put.json()) as Array<Record<string, unknown>>;
     expect(created).toHaveLength(2);
 
-    const get = await app.request("/admin/prices", { headers: adminHeaders() });
+    const get = await app.request("/admin/prices", { headers: await adminHeaders() });
     expect(get.status).toBe(200);
     const list = (await get.json()) as Array<Record<string, unknown>>;
     expect(list).toHaveLength(2);
@@ -78,7 +78,7 @@ describe("admin prices", () => {
     const app = testApp();
     const first = await app.request("/admin/prices", {
       method: "PUT",
-      headers: { ...adminHeaders(), "content-type": "application/json" },
+      headers: { ...await adminHeaders(), "content-type": "application/json" },
       body: JSON.stringify({
         prices: [entry({ providerId: provider.id }), entry({ providerId: provider.id, modelMatcher: "glm-*", priceInput: 1, priceOutput: 2 })],
       }),
@@ -88,7 +88,7 @@ describe("admin prices", () => {
 
     const second = await app.request("/admin/prices", {
       method: "PUT",
-      headers: { ...adminHeaders(), "content-type": "application/json" },
+      headers: { ...await adminHeaders(), "content-type": "application/json" },
       body: JSON.stringify({
         prices: [{ id: kept.id, ...entry({ providerId: provider.id, priceInput: 0.2 }) }],
       }),
@@ -103,7 +103,7 @@ describe("admin prices", () => {
     const app = testApp();
     const res = await app.request("/admin/prices", {
       method: "PUT",
-      headers: { ...adminHeaders(), "content-type": "application/json" },
+      headers: { ...await adminHeaders(), "content-type": "application/json" },
       body: JSON.stringify({ prices: [entry({ providerId: null })] }),
     });
     expect(res.status).toBe(400);
@@ -115,7 +115,7 @@ describe("admin prices", () => {
     const app = testApp();
     const res = await app.request("/admin/prices", {
       method: "PUT",
-      headers: { ...adminHeaders(), "content-type": "application/json" },
+      headers: { ...await adminHeaders(), "content-type": "application/json" },
       body: JSON.stringify({
         prices: [entry({ scope: "provider", providerId: null, accountId: account.id })],
       }),
@@ -129,7 +129,7 @@ describe("admin prices", () => {
     const app = testApp();
     const res = await app.request("/admin/prices", {
       method: "PUT",
-      headers: { ...adminHeaders(), "content-type": "application/json" },
+      headers: { ...await adminHeaders(), "content-type": "application/json" },
       body: JSON.stringify({
         prices: [entry({ providerId: provider.id, modelMatcher: "deep*seek*" })],
       }),
@@ -141,7 +141,7 @@ describe("admin prices", () => {
     const app = testApp();
     const res = await app.request("/admin/prices", {
       method: "PUT",
-      headers: { ...adminHeaders(), "content-type": "application/json" },
+      headers: { ...await adminHeaders(), "content-type": "application/json" },
       body: JSON.stringify({ prices: [entry({ providerId: "nope" })] }),
     });
     expect(res.status).toBe(400);
@@ -153,7 +153,7 @@ describe("admin prices", () => {
     const app = testApp();
     const res = await app.request("/admin/prices", {
       method: "PUT",
-      headers: { ...adminHeaders(), "content-type": "application/json" },
+      headers: { ...await adminHeaders(), "content-type": "application/json" },
       body: JSON.stringify({ prices: [{ id: "nope", ...entry({ providerId: provider.id }) }] }),
     });
     expect(res.status).toBe(404);

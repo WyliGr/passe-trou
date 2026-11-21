@@ -38,7 +38,8 @@ interface RequestsResponse {
   nextCursor: string | null;
 }
 
-async function list(query = "", headers = adminHeaders()): Promise<{ status: number; body: RequestsResponse }> {
+async function list(query = "", headers?: Record<string, string>): Promise<{ status: number; body: RequestsResponse }> {
+  headers = headers ?? (await adminHeaders());
   const res = await testApp().request(`/admin/requests${query}`, { headers });
   return { status: res.status, body: (await res.json()) as RequestsResponse };
 }
@@ -90,7 +91,7 @@ describe("GET /admin/requests", () => {
     `cursor=${Buffer.from(JSON.stringify({ ts: "garbage", id: "x" })).toString("base64url")}`,
     `cursor=${Buffer.from(JSON.stringify({ id: "abc" })).toString("base64url")}`,
   ])("400 on invalid params: %s", async (q) => {
-    const res = await testApp().request(`/admin/requests?${q}`, { headers: adminHeaders() });
+    const res = await testApp().request(`/admin/requests?${q}`, { headers: await adminHeaders() });
     expect(res.status).toBe(400);
   });
 

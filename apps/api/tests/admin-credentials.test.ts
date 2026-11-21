@@ -5,10 +5,10 @@ import { adminHeaders, db, TEST_MASTER_KEY, testApp } from "./setup.ts";
 const URL = "http://localhost";
 const PLAINTEXT = "sk-super-secret-key-abcdef123456";
 
-function req(path: string, init: RequestInit = {}) {
+async function req(path: string, init: RequestInit = {}) {
   return testApp().request(`${URL}${path}`, {
     ...init,
-    headers: { ...adminHeaders(), ...(init.headers ?? {}) },
+    headers: { ...await adminHeaders(), ...(init.headers ?? {}) },
   });
 }
 

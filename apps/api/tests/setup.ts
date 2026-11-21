@@ -1,7 +1,10 @@
+import crypto from "node:crypto";
 import { beforeEach } from "vitest";
 import { createApp } from "../src/app.ts";
 import { createPrismaClient, type Db } from "../src/db.ts";
 import { loadLocalEnv } from "../src/env.ts";
+import { hashPassword } from "../src/lib/passwords.ts";
+import { createSession } from "../src/lib/sessions.ts";
 
 loadLocalEnv();
 
@@ -17,23 +20,50 @@ export const db: Db = createPrismaClient(testDatabaseUrl());
 
 /** Fixed 32-byte key for all crypto tests; never used outside tests. */
 export const TEST_MASTER_KEY = Buffer.from("cd".repeat(32), "hex");
-export const TEST_ADMIN_TOKEN = "test-admin-token-c2VyeC1zZWNyZXQ";
 
-export function testApp(overrides: { db?: Db; adminToken?: string } = {}) {
+export const TEST_PASSWORD = "test-password-123";
+// scrypt is deliberately slow; hash one shared test password once per worker.
+const TEST_PASSWORD_HASH = hashPassword(TEST_PASSWORD);
+
+export interface TestUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+}
+
+/** Fresh admin user + live session in the test DB; returns the plaintext session token. */
+export async function createTestUser(): Promise<{ user: TestUser; token: string }> {
+  const user = await db.user.create({
+    data: {
+      email: `${crypto.randomUUID()}@test.local`,
+      name: "Test Admin",
+      passwordHash: TEST_PASSWORD_HASH,
+      role: "admin",
+    },
+  });
+  const token = await createSession(db, user.id);
+  return {
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    token,
+  };
+}
+
+export function testApp(overrides: { db?: Db } = {}) {
   return createApp({
     db: overrides.db ?? db,
-    adminToken: overrides.adminToken ?? TEST_ADMIN_TOKEN,
     masterKey: TEST_MASTER_KEY,
   });
 }
 
-export function adminHeaders(): Record<string, string> {
-  return { authorization: `Bearer ${TEST_ADMIN_TOKEN}` };
+export async function adminHeaders(): Promise<Record<string, string>> {
+  const { token } = await createTestUser();
+  return { authorization: `Bearer ${token}` };
 }
 
 /** FK-safe full reset; runs before each test in every file. */
 beforeEach(async () => {
   await db.$executeRawUnsafe(
-    'TRUNCATE TABLE "requests", "idempotency_keys", "api_key_models", "api_keys", "model_accounts", "account_credentials", "prices", "accounts", "models", "providers", "members" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "requests", "idempotency_keys", "sessions", "users", "api_key_models", "api_keys", "model_accounts", "account_credentials", "prices", "accounts", "models", "providers", "members" RESTART IDENTITY CASCADE',
   );
 });

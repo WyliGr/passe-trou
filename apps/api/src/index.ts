@@ -9,7 +9,6 @@ const env = loadEnv();
 
 const app = createApp({
   db: getDb(),
-  adminToken: env.ADMIN_TOKEN,
   masterKey: masterKeyFromHex(env.ENCRYPTION_MASTER_KEY),
 });
 

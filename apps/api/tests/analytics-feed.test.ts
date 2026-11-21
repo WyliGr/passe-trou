@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.ts";
 import { feedBus, type FeedRow } from "../src/lib/feedBus.ts";
 import { recordRequest } from "../src/proxy/capture.ts";
-import { adminHeaders, db, testApp, TEST_ADMIN_TOKEN, TEST_MASTER_KEY } from "./setup.ts";
+import { adminHeaders, db, testApp, TEST_MASTER_KEY } from "./setup.ts";
 
 /**
  * M2-T3: GET /admin/analytics/feed — live SSE feed of persisted request rows.
@@ -176,8 +176,8 @@ async function readUntil(res: Response, want: string | RegExp, ms = 5000): Promi
   }
 }
 
-function connect(path = "/admin/analytics/feed") {
-  return testApp().request(path, { headers: adminHeaders() });
+async function connect(path = "/admin/analytics/feed") {
+  return testApp().request(path, { headers: await adminHeaders() });
 }
 
 describe("GET /admin/analytics/feed", () => {
@@ -271,11 +271,10 @@ describe("GET /admin/analytics/feed", () => {
   it("sends : ping heartbeats (short injected interval)", async () => {
     const app = createApp({
       db,
-      adminToken: TEST_ADMIN_TOKEN,
       masterKey: TEST_MASTER_KEY,
       feedHeartbeatMs: 50,
     });
-    const res = await app.request("/admin/analytics/feed", { headers: adminHeaders() });
+    const res = await app.request("/admin/analytics/feed", { headers: await adminHeaders() });
     expect(res.status).toBe(200);
     await readUntil(res, "event: hello\n");
     const text = await readUntil(res, /\n: ping\n\n/);
